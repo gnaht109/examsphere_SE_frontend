@@ -1,41 +1,28 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useState } from 'react';
+import { clearStoredAuth, getStoredAuth, storeAuth } from '../api/client.js';
+import { AuthContext } from './AuthContextObject.js';
 
-const AuthContext = createContext(null);
+export function AuthProvider({ children }) {
+  const [auth, setAuth] = useState(() => getStoredAuth());
 
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true); // Add a loading state
+  function login(authData) {
+    storeAuth(authData);
+    setAuth(authData);
+  }
 
-    useEffect(() => {
-        // Check if a token exists in storage when the app mounts
-        const savedToken = localStorage.getItem('token');
-        if (savedToken) {
-        // In a real app, you'd verify this token with the backend here
-        // For now, let's assume if it exists, they are logged in
-        setUser({ token: savedToken }); 
-        }
-        setLoading(false);
-    }, []);
+  function logout() {
+    clearStoredAuth();
+    setAuth(null);
+  }
 
+  const value = {
+    auth,
+    user: auth,
+    isAuthenticated: Boolean(auth?.token),
+    isBootstrapping: false,
+    login,
+    logout,
+  };
 
-
-    const login = (userData) => {
-        setUser(userData);
-    };
-
-    const logout = () => {
-        setUser(null);
-        localStorage.removeItem('token');
-    };
-
-    if (loading) return null; // Optionally, you could return a loading spinner here
-
-    return (
-        <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
-        {children}
-        </AuthContext.Provider>
-    );
-};
-
-// Custom hook for easy access
-export const useAuth = () => useContext(AuthContext);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
