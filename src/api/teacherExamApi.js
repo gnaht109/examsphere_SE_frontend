@@ -28,6 +28,12 @@ export function deleteTeacherExamApi(examId) {
   });
 }
 
+export function publishTeacherExamApi(examId) {
+  return apiRequest(`/teacher/exams/${examId}/publish`, {
+    method: 'PUT',
+  });
+}
+
 export function addTeacherQuestionApi(examId, payload) {
   return apiRequest(`/teacher/exams/${examId}/questions`, {
     method: 'POST',

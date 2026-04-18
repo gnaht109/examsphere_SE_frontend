@@ -3,6 +3,10 @@ import AppLayout from '../components/layout/AppLayout.jsx';
 import ProtectedRoute from '../components/routes/ProtectedRoute.jsx';
 import RoleRoute from '../components/routes/RoleRoute.jsx';
 import LoginPage from '../pages/auth/LoginPage.jsx';
+import RegisterPage from '../pages/auth/RegisterPage.jsx';
+import AdminDashboardPage from '../pages/admin/AdminDashboardPage.jsx';
+import CreateTeacherPage from '../pages/admin/CreateTeacherPage.jsx';
+import HomePage from '../pages/public/HomePage.jsx';
 import TeacherDashboardPage from '../pages/teacher/TeacherDashboardPage.jsx';
 import MyExamsPage from '../pages/teacher/MyExamsPage.jsx';
 import ExamDetailPage from '../pages/teacher/ExamDetailPage.jsx';
@@ -19,7 +23,9 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
         <Route
           element={
@@ -28,8 +34,22 @@ export default function AppRouter() {
             </ProtectedRoute>
           }
         >
-          <Route path="/" element={<Navigate to="/teacher" replace />} />
-
+          <Route
+            path="/admin"
+            element={
+              <RoleRoute allowedRole="ADMIN">
+                <AdminDashboardPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/admin/teachers/new"
+            element={
+              <RoleRoute allowedRole="ADMIN">
+                <CreateTeacherPage />
+              </RoleRoute>
+            }
+          />
           <Route
             path="/teacher"
             element={

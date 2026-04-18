@@ -1,14 +1,34 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
+import SideRail from '../navigation/SideRail.jsx';
+import UserMenu from '../navigation/UserMenu.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
-
-function linkClassName({ isActive }) {
-  return isActive ? 'nav-link active' : 'nav-link';
-}
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const isTeacher = user?.role === 'TEACHER';
+  const isAdmin = user?.role === 'ADMIN';
+  const roleLabel = isAdmin ? 'Admin Workspace' : isTeacher ? 'Teacher Workspace' : 'Student Workspace';
+  const roleDescription = isAdmin
+    ? 'Manage protected teacher account creation from the admin area.'
+    : isTeacher
+    ? 'Build exams, publish them, and review the details cleanly.'
+    : 'Browse published exams and take them in a calm, focused student flow.';
+  const railItems = isAdmin
+    ? [
+        { label: 'Dashboard', to: '/admin', end: true },
+        { label: 'Create Teacher', to: '/admin/teachers/new' },
+      ]
+    : isTeacher
+    ? [
+        { label: 'Dashboard', to: '/teacher', end: true },
+        { label: 'My Exams', to: '/teacher/exams' },
+      ]
+    : [
+        { label: 'Dashboard', to: '/student', end: true },
+        { label: 'Published Exams', to: '/student/exams' },
+      ];
+  const profileRoute = railItems[0]?.to || '/';
 
   function handleLogout() {
     logout();
@@ -17,53 +37,32 @@ export default function AppLayout() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand-block">
-          <h1>ExamSphere</h1>
-          <p>
-            {isTeacher
-              ? 'Build exams, publish them, and review the details cleanly.'
-              : 'Browse published exams and take them in a clean student flow.'}
-          </p>
-        </div>
+      <div className="app-shell-bg bg-one" />
+      <div className="app-shell-bg bg-two" />
 
-        <nav className="nav-list">
-          {isTeacher ? (
-            <>
-              <NavLink to="/teacher" end className={linkClassName}>
-                Dashboard
-              </NavLink>
-              <NavLink to="/teacher/exams" className={linkClassName}>
-                My Exams
-              </NavLink>
-            </>
-          ) : (
-            <>
-              <NavLink to="/student" end className={linkClassName}>
-                Dashboard
-              </NavLink>
-              <NavLink to="/student/exams" className={linkClassName}>
-                Published Exams
-              </NavLink>
-            </>
-          )}
-        </nav>
+      <div className="app-frame dashboard-shell">
+        <SideRail items={railItems} footerLabel={roleLabel} />
 
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div>{user?.username || 'Unknown user'}</div>
-            <div className="sidebar-role">{user?.role || 'No role'}</div>
+        <main className="page-panel">
+          <header className="page-toolbar surface-card">
+            <div className="page-toolbar-copy">
+              <span className="hero-kicker app-kicker">{roleLabel}</span>
+              <h1>ExamSphere</h1>
+              <p>{roleDescription}</p>
+            </div>
+
+            <div className="page-toolbar-actions">
+              <span className="header-icon-chip" aria-hidden="true" />
+              <span className="header-icon-chip outlined" aria-hidden="true" />
+              <UserMenu user={user} profileTo={profileRoute} onLogout={handleLogout} />
+            </div>
+          </header>
+
+          <div className="page-area">
+          <Outlet />
           </div>
-
-          <button type="button" className="sidebar-logout" onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      <main className="page-area">
-        <Outlet />
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

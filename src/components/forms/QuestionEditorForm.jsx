@@ -82,6 +82,9 @@ export default function QuestionEditorForm({
   submitLabel,
   submittingLabel,
   cancelTo,
+  embedded = false,
+  onCancel,
+  cardClassName = '',
 }) {
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -165,19 +168,28 @@ export default function QuestionEditorForm({
     }
   }
 
-  return (
-    <section>
-      <header className="page-header">
-        <div>
-          <h2>{heading}</h2>
-          <p>{description}</p>
+  const content = (
+    <>
+      {embedded ? (
+        <div className="embedded-form-header">
+          <div>
+            <h3>{heading}</h3>
+            {description ? <p>{description}</p> : null}
+          </div>
         </div>
-        <Link className="button-secondary" to={cancelTo}>
-          Back
-        </Link>
-      </header>
+      ) : (
+        <header className="page-header">
+          <div>
+            <h2>{heading}</h2>
+            <p>{description}</p>
+          </div>
+          <Link className="button-secondary" to={cancelTo}>
+            Back
+          </Link>
+        </header>
+      )}
 
-      <div className="surface-card form-card">
+      <div className={['surface-card', 'form-card', cardClassName].filter(Boolean).join(' ')}>
         <form className="stack-lg" onSubmit={handleSubmit} noValidate>
           <div className="form-field">
             <label htmlFor="content">Question content</label>
@@ -335,12 +347,20 @@ export default function QuestionEditorForm({
             <button type="submit" className="button-primary" disabled={isSubmitting}>
               {isSubmitting ? submittingLabel : submitLabel}
             </button>
-            <Link className="button-secondary" to={cancelTo}>
-              Cancel
-            </Link>
+            {onCancel ? (
+              <button type="button" className="button-secondary" onClick={onCancel}>
+                Cancel
+              </button>
+            ) : cancelTo ? (
+              <Link className="button-secondary" to={cancelTo}>
+                Cancel
+              </Link>
+            ) : null}
           </div>
         </form>
       </div>
-    </section>
+    </>
   );
+
+  return embedded ? content : <section>{content}</section>;
 }

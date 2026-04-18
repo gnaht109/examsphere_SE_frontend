@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { loginApi } from '../../api/authApi.js';
+import AuthSplitLayout from '../../components/auth/AuthSplitLayout.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 
 export default function LoginPage() {
@@ -15,7 +16,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const fallbackPath = isAuthenticated ? undefined : '/teacher';
+  const fallbackPath = '/';
   const nextPath = location.state?.from?.pathname || fallbackPath;
 
   if (isAuthenticated) {
@@ -38,7 +39,8 @@ export default function LoginPage() {
     try {
       const authData = await loginApi(form);
       login(authData);
-      const roleHome = authData.role === 'STUDENT' ? '/student' : '/teacher';
+      const roleHome =
+        authData.role === 'ADMIN' ? '/admin' : authData.role === 'STUDENT' ? '/student' : '/teacher';
       navigate(location.state?.from?.pathname || roleHome, { replace: true });
     } catch (error) {
       setErrorMessage(error.message);
@@ -48,48 +50,52 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-page">
-      <div className="surface-card login-card">
-        <h1>Welcome to ExamSphere</h1>
-        <p className="muted">
-          Start with teacher sign-in. We will expand this foundation into create exam,
-          upload exam, and exam-taking flows next.
-        </p>
-
-        <form className="login-form" onSubmit={handleSubmit}>
-          <div className="form-field">
-            <label htmlFor="username">Username</label>
-            <input
-              id="username"
-              name="username"
-              type="text"
-              value={form.username}
-              onChange={handleChange}
-              placeholder="ITCSIU23034"
-              required
-            />
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Enter your password"
-              required
-            />
-          </div>
-
-          {errorMessage ? <div className="error-banner">{errorMessage}</div> : null}
-
-          <button type="submit" className="button-primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
+    <AuthSplitLayout
+      eyebrow="Welcome back"
+      title="Sign in and continue your exam workflow."
+      description="Teachers can manage exams and passages, while students can browse published exams and start taking them."
+      altPrompt="Don't have an account?"
+      altLabel="Create one"
+      altTo="/register"
+    >
+      <div className="auth-form-header">
+        <h2>Login</h2>
+        <p className="muted">Use your username and password to enter ExamSphere.</p>
       </div>
-    </div>
+
+      <form className="login-form" onSubmit={handleSubmit}>
+        <div className="form-field">
+          <label htmlFor="username">Username</label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            value={form.username}
+            onChange={handleChange}
+            placeholder="ITCSIU23034"
+            required
+          />
+        </div>
+
+        <div className="form-field">
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            value={form.password}
+            onChange={handleChange}
+            placeholder="Enter your password"
+            required
+          />
+        </div>
+
+        {errorMessage ? <div className="error-banner">{errorMessage}</div> : null}
+
+        <button type="submit" className="button-primary auth-submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Signing in...' : 'Sign in'}
+        </button>
+      </form>
+    </AuthSplitLayout>
   );
 }

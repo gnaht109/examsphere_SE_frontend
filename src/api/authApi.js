@@ -6,3 +6,10 @@ export function loginApi({ username, password }) {
     body: JSON.stringify({ username, password }),
   });
 }
+
+export function signupApi(payload) {
+  return apiRequest('/users/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

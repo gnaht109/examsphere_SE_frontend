@@ -23,11 +23,16 @@ export default function ExamEditorForm({
   submitLabel,
   submittingLabel,
   cancelTo,
+  secondaryAction,
+  embedded = false,
+  onCancel,
+  cardClassName = '',
 }) {
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRunningSecondaryAction, setIsRunningSecondaryAction] = useState(false);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -69,19 +74,45 @@ export default function ExamEditorForm({
     }
   }
 
-  return (
-    <section>
-      <header className="page-header">
-        <div>
-          <h2>{heading}</h2>
-          <p>{description}</p>
-        </div>
-        <Link className="button-secondary" to={cancelTo}>
-          Back
-        </Link>
-      </header>
+  async function handleSecondaryAction() {
+    if (!secondaryAction) {
+      return;
+    }
 
-      <div className="surface-card form-card">
+    setErrorMessage('');
+    setIsRunningSecondaryAction(true);
+
+    try {
+      await secondaryAction.onClick();
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsRunningSecondaryAction(false);
+    }
+  }
+
+  const content = (
+    <>
+      {embedded ? (
+        <div className="embedded-form-header">
+          <div>
+            <h3>{heading}</h3>
+            {description ? <p>{description}</p> : null}
+          </div>
+        </div>
+      ) : (
+        <header className="page-header">
+          <div>
+            <h2>{heading}</h2>
+            <p>{description}</p>
+          </div>
+          <Link className="button-secondary" to={cancelTo}>
+            Back
+          </Link>
+        </header>
+      )}
+
+      <div className={['surface-card', 'form-card', cardClassName].filter(Boolean).join(' ')}>
         <form className="stack-lg" onSubmit={handleSubmit} noValidate>
           <div className="form-field">
             <label htmlFor="title">Title</label>
@@ -140,12 +171,30 @@ export default function ExamEditorForm({
             <button type="submit" className="button-primary" disabled={isSubmitting}>
               {isSubmitting ? submittingLabel : submitLabel}
             </button>
-            <Link className="button-secondary" to={cancelTo}>
-              Cancel
-            </Link>
+            {secondaryAction ? (
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={handleSecondaryAction}
+                disabled={isRunningSecondaryAction}
+              >
+                {isRunningSecondaryAction ? secondaryAction.loadingLabel : secondaryAction.label}
+              </button>
+            ) : null}
+            {onCancel ? (
+              <button type="button" className="button-secondary" onClick={onCancel}>
+                Cancel
+              </button>
+            ) : cancelTo ? (
+              <Link className="button-secondary" to={cancelTo}>
+                Cancel
+              </Link>
+            ) : null}
           </div>
         </form>
       </div>
-    </section>
+    </>
   );
+
+  return embedded ? content : <section>{content}</section>;
 }
