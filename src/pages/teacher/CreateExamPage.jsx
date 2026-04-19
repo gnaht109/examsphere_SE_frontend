@@ -20,6 +20,7 @@ export default function CreateExamPage() {
         if (!passageMap.has(question.passage)) {
           const passage = await createPassageApi(createdExam.id, {
             content: question.passage,
+            passageOrder: question.passageOrder ? Number(question.passageOrder) : null,
             questions: [],
           });
 

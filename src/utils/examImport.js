@@ -115,6 +115,7 @@ function parseWorkbookRows(rows) {
       const questionType = toQuestionType(getCell(row, headers, 'type'));
       const question = {
         passage: String(getCell(row, headers, 'passage') || '').trim(),
+        passageOrder: getCell(row, headers, 'passage_order') || null,
         content: String(getCell(row, headers, 'question') || '').trim(),
         type: questionType,
         points: Number(getCell(row, headers, 'points') || 1),
@@ -171,8 +172,9 @@ export function buildExamImportTemplate() {
 Description,Imported from spreadsheet
 Duration,60
 
-Question,Type,Option A,Option B,Option C,Option D,Correct,Points,Passage,Explanation
-What is 2 + 2?,MULTIPLE_CHOICE,3,4,5,6,2,1,,Basic arithmetic
-The earth is round.,TRUE_FALSE,,,,,True,1,,Simple fact
-What is the main idea?,MULTIPLE_CHOICE,Choice A,Choice B,Choice C,Choice D,Choice B,2,This is a shared passage for the next questions.,Reading comprehension`;
+Question,Type,Option A,Option B,Option C,Option D,Correct,Points,Question Order,Passage Order,Passage,Explanation
+What is 2 + 2?,MULTIPLE_CHOICE,3,4,5,6,2,1,1,,,Basic arithmetic
+The earth is round.,TRUE_FALSE,,,,,True,1,2,,,Simple fact
+What is the main idea?,MULTIPLE_CHOICE,Choice A,Choice B,Choice C,Choice D,Choice B,2,3,3,This is a shared passage for the next questions.,Reading comprehension
+Which detail supports the passage?,MULTIPLE_CHOICE,Detail A,Detail B,Detail C,Detail D,Detail C,2,4,3,This is a shared passage for the next questions.,Second passage question`;
 }

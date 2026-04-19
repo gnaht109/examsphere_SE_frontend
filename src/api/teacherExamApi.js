@@ -61,6 +61,13 @@ export function createPassageApi(examId, payload) {
   });
 }
 
+export function updatePassageApi(passageId, payload) {
+  return apiRequest(`/teacher/passages/${passageId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function addQuestionToPassageApi(passageId, payload) {
   return apiRequest(`/teacher/passages/${passageId}/questions`, {
     method: 'POST',

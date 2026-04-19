@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ExamEditorForm from '../../components/forms/ExamEditorForm.jsx';
+import PassageEditorForm from '../../components/forms/PassageEditorForm.jsx';
 import QuestionEditorForm from '../../components/forms/QuestionEditorForm.jsx';
 import {
   addQuestionToPassageApi,
@@ -10,11 +11,128 @@ import {
   deleteTeacherQuestionApi,
   getTeacherExamDetailApi,
   publishTeacherExamApi,
+  updatePassageApi,
   updateTeacherExamApi,
   updateTeacherQuestionApi,
 } from '../../api/teacherExamApi.js';
 import { formatDateTime, getStatusClassName } from '../../utils/formatters.js';
+import { buildExamDisplayItems, countDisplayQuestions } from '../../utils/examOrdering.js';
 import { buildQuestionInitialForm } from '../../utils/questionForm.js';
+
+function buildQuestionPayload(question, questionOrder = question.questionOrder) {
+  return {
+    content: question.content,
+    points: question.points ?? 1,
+    type: question.questionType,
+    explaination: question.explaination || '',
+    questionOrder,
+    options:
+      question.options?.map((option, index) => ({
+        content: option.content,
+        isCorrect: Boolean(option.isCorrect),
+        optionOrder: option.optionOrder ?? index + 1,
+      })) || [],
+  };
+}
+
+function buildPassagePayload(passage, passageOrder = passage.passageOrder) {
+  return {
+    content: passage.content,
+    passageOrder,
+    questions: [],
+  };
+}
+
+function reorderItems(items, draggedKey, targetKey) {
+  const nextItems = [...items];
+  const draggedIndex = nextItems.findIndex((item) => item.key === draggedKey);
+  const targetIndex = nextItems.findIndex((item) => item.key === targetKey);
+
+  if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
+    return items;
+  }
+
+  const [draggedItem] = nextItems.splice(draggedIndex, 1);
+  nextItems.splice(targetIndex, 0, draggedItem);
+  return nextItems;
+}
+
+function applyTopLevelOrderToExam(exam, reorderedItems) {
+  if (!exam) {
+    return exam;
+  }
+
+  const questionOrderMap = new Map();
+  const passageOrderMap = new Map();
+
+  reorderedItems.forEach((item, index) => {
+    const nextOrder = index + 1;
+
+    if (item.type === 'question') {
+      questionOrderMap.set(item.question.id, nextOrder);
+      return;
+    }
+
+    passageOrderMap.set(item.passage.id, nextOrder);
+  });
+
+  return {
+    ...exam,
+    questions: (exam.questions || []).map((question) => ({
+      ...question,
+      questionOrder: questionOrderMap.get(question.id) ?? question.questionOrder,
+    })),
+    passages: (exam.passages || []).map((passage) => ({
+      ...passage,
+      passageOrder: passageOrderMap.get(passage.id) ?? passage.passageOrder,
+    })),
+  };
+}
+
+function applyPassageQuestionOrderToExam(exam, passageId, reorderedQuestions) {
+  if (!exam) {
+    return exam;
+  }
+
+  const questionOrderMap = new Map(
+    reorderedQuestions.map((question, index) => [question.id, index + 1]),
+  );
+
+  return {
+    ...exam,
+    passages: (exam.passages || []).map((passage) =>
+      passage.id !== passageId
+        ? passage
+        : {
+            ...passage,
+            questions: (passage.questions || []).map((question) => ({
+              ...question,
+              questionOrder: questionOrderMap.get(question.id) ?? question.questionOrder,
+            })),
+          },
+    ),
+  };
+}
+
+function DragHandle({ title, onDragStart, onDragEnd }) {
+  return (
+    <span
+      className="drag-chip"
+      title={title}
+      draggable
+      onDragStart={(event) => {
+        event.stopPropagation();
+        onDragStart(event);
+      }}
+      onDragEnd={(event) => {
+        event.stopPropagation();
+        onDragEnd?.(event);
+      }}
+    >
+      Drag
+    </span>
+  );
+}
 
 function QuestionCard({
   question,
@@ -24,19 +142,35 @@ function QuestionCard({
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  isDragging = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDropEnabled = false,
+  dragLabel = 'Drag to reorder',
 }) {
   return (
-    <article className="surface-card question-card dashboard-card" id={`question-${question.id}`}>
+    <article
+      className={`surface-card question-card dashboard-card ${isDropEnabled ? 'draggable-card' : ''} ${isDragging ? 'is-dragging' : ''}`}
+      id={`question-${question.id}`}
+      onDragOver={isDropEnabled ? onDragOver : undefined}
+      onDrop={isDropEnabled ? onDrop : undefined}
+    >
       <div className="section-heading">
         <div>
           <h3>
             {indexLabel}: {question.content}
           </h3>
           <p className="muted">
-            Type: {question.questionType} | Points: {question.points ?? 'Not set'}
+            Type: {question.questionType} | Points: {question.points ?? 'Not set'} | Order:{' '}
+            {question.questionOrder ?? 'Auto'}
           </p>
         </div>
         <div className="action-row">
+          {onDragStart ? (
+            <DragHandle title={dragLabel} onDragStart={onDragStart} onDragEnd={onDragEnd} />
+          ) : null}
           <button type="button" className="button-secondary" onClick={() => onStartEdit(question.id)}>
             {isEditing ? 'Editing' : 'Edit inline'}
           </button>
@@ -73,7 +207,137 @@ function QuestionCard({
           />
         </div>
       ) : null}
+    </article>
+  );
+}
 
+function PassageCard({
+  passage,
+  questions,
+  isEditing,
+  isAddingQuestion,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onToggleAddQuestion,
+  onAddQuestion,
+  onDelete,
+  editingQuestionId,
+  onStartEditQuestion,
+  onCancelEditQuestion,
+  onSaveEditQuestion,
+  onDeleteQuestion,
+  draggingQuestionId,
+  onQuestionDragStart,
+  onQuestionDragOver,
+  onQuestionDrop,
+  isDragging = false,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDropEnabled = false,
+}) {
+  return (
+    <article
+      className={`surface-card passage-card dashboard-card ${isDropEnabled ? 'draggable-card' : ''} ${isDragging ? 'is-dragging' : ''}`}
+      onDragOver={isDropEnabled ? onDragOver : undefined}
+      onDrop={isDropEnabled ? onDrop : undefined}
+    >
+      <div className="section-heading">
+        <div>
+          <h3>Passage</h3>
+          <p className="muted">
+            Order: {passage.passageOrder ?? 'Auto'} | {questions.length} linked question
+            {questions.length === 1 ? '' : 's'}
+          </p>
+        </div>
+        <div className="action-row">
+          {onDragStart ? (
+            <DragHandle
+              title="Drag to move this whole passage block"
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+            />
+          ) : null}
+          <button type="button" className="button-secondary" onClick={() => onStartEdit(passage.id)}>
+            {isEditing ? 'Editing' : 'Edit passage'}
+          </button>
+          <button
+            type="button"
+            className="button-secondary"
+            onClick={() => onToggleAddQuestion(isAddingQuestion ? null : passage.id)}
+          >
+            {isAddingQuestion ? 'Adding question' : 'Add passage question'}
+          </button>
+          <button type="button" className="button-danger" onClick={() => onDelete(passage.id)}>
+            Delete passage
+          </button>
+        </div>
+      </div>
+
+      <div className="passage-content">{passage.content}</div>
+
+      {isEditing ? (
+        <div className="embedded-editor-block">
+          <PassageEditorForm
+            initialForm={{
+              content: passage.content,
+              passageOrder: passage.passageOrder ?? '',
+            }}
+            heading="Edit Passage"
+            description="Update the passage content and where the whole block appears in the exam."
+            submitLabel="Save passage"
+            submittingLabel="Saving passage..."
+            embedded
+            cardClassName="embedded-form-card"
+            onCancel={onCancelEdit}
+            onSubmit={(payload) => onSaveEdit(passage.id, payload)}
+          />
+        </div>
+      ) : null}
+
+      {isAddingQuestion ? (
+        <div className="embedded-editor-block">
+          <QuestionEditorForm
+            initialForm={buildQuestionInitialForm()}
+            heading="Add Passage Question"
+            description="Create a new question inside this passage without leaving the exam workspace."
+            submitLabel="Add passage question"
+            submittingLabel="Adding passage question..."
+            embedded
+            cardClassName="embedded-form-card"
+            onCancel={() => onToggleAddQuestion(null)}
+            onSubmit={(payload) => onAddQuestion(passage.id, payload)}
+          />
+        </div>
+      ) : null}
+
+      {questions.length ? (
+        <div className="question-list passage-question-list">
+          {questions.map((question) => (
+            <QuestionCard
+              key={question.id}
+              question={question}
+              indexLabel={`Question ${question.questionNumber}`}
+              isEditing={editingQuestionId === question.id}
+              onStartEdit={onStartEditQuestion}
+              onCancelEdit={onCancelEditQuestion}
+              onSaveEdit={onSaveEditQuestion}
+              onDelete={onDeleteQuestion}
+              isDragging={draggingQuestionId === question.id}
+              onDragStart={(event) => onQuestionDragStart(event, question.id)}
+              onDragOver={onQuestionDragOver}
+              onDrop={(event) => onQuestionDrop(event, question.id)}
+              onDragEnd={onDragEnd}
+              isDropEnabled
+              dragLabel="Drag to reorder questions in this passage"
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="empty-state">This passage does not have any questions yet.</div>
+      )}
     </article>
   );
 }
@@ -85,8 +349,11 @@ export default function ExamDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [editingQuestionId, setEditingQuestionId] = useState(null);
+  const [editingPassageId, setEditingPassageId] = useState(null);
   const [isCreatingQuestion, setIsCreatingQuestion] = useState(false);
   const [creatingPassageQuestionId, setCreatingPassageQuestionId] = useState(null);
+  const [dragState, setDragState] = useState(null);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
 
   async function loadExamDetail() {
     setIsLoading(true);
@@ -105,6 +372,166 @@ export default function ExamDetailPage() {
   useEffect(() => {
     loadExamDetail();
   }, [examId]);
+
+  const displayItems = useMemo(() => buildExamDisplayItems(exam), [exam]);
+  const totalVisibleQuestions = useMemo(() => countDisplayQuestions(displayItems), [displayItems]);
+  const keyedDisplayItems = useMemo(
+    () =>
+      displayItems.map((item) => ({
+        ...item,
+        key: item.type === 'question' ? `question-${item.question.id}` : `passage-${item.passage.id}`,
+      })),
+    [displayItems],
+  );
+
+  async function persistTopLevelOrder(reorderedItems) {
+    setIsSavingOrder(true);
+    setErrorMessage('');
+
+    try {
+      await Promise.all(
+        reorderedItems.map((item, index) => {
+          const nextOrder = index + 1;
+
+          if (item.type === 'question') {
+            return updateTeacherQuestionApi(
+              examId,
+              item.question.id,
+              buildQuestionPayload(item.question, nextOrder),
+            );
+          }
+
+          return updatePassageApi(item.passage.id, buildPassagePayload(item.passage, nextOrder));
+        }),
+      );
+
+      setExam((current) => applyTopLevelOrderToExam(current, reorderedItems));
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsSavingOrder(false);
+      setDragState(null);
+    }
+  }
+
+  async function persistPassageQuestionOrder(passageId, reorderedQuestions) {
+    setIsSavingOrder(true);
+    setErrorMessage('');
+
+    try {
+      await Promise.all(
+        reorderedQuestions.map((question, index) =>
+          updateTeacherQuestionApi(examId, question.id, buildQuestionPayload(question, index + 1)),
+        ),
+      );
+
+      setExam((current) => applyPassageQuestionOrderToExam(current, passageId, reorderedQuestions));
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsSavingOrder(false);
+      setDragState(null);
+    }
+  }
+
+  function handleTopLevelDragStart(event, itemKey) {
+    if (isSavingOrder) {
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = 'move';
+    setDragState({
+      level: 'top-level',
+      itemKey,
+    });
+  }
+
+  function handlePassageQuestionDragStart(event, passageId, questionId) {
+    if (isSavingOrder) {
+      return;
+    }
+
+    event.dataTransfer.effectAllowed = 'move';
+    setDragState({
+      level: 'passage-question',
+      passageId,
+      questionId,
+    });
+  }
+
+  function handleTopLevelDragOver(event) {
+    if (dragState?.level !== 'top-level') {
+      return;
+    }
+
+    event.preventDefault();
+  }
+
+  function handlePassageQuestionDragOver(event) {
+    if (dragState?.level !== 'passage-question') {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function handleDragEnd() {
+    setDragState(null);
+  }
+
+  async function handleTopLevelDrop(event, targetKey) {
+    if (dragState?.level !== 'top-level') {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (isSavingOrder || dragState?.level !== 'top-level' || dragState.itemKey === targetKey) {
+      return;
+    }
+
+    const reorderedItems = reorderItems(keyedDisplayItems, dragState.itemKey, targetKey);
+    await persistTopLevelOrder(reorderedItems);
+  }
+
+  async function handlePassageQuestionDrop(event, passageId, targetQuestionId) {
+    if (dragState?.level !== 'passage-question') {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (
+      isSavingOrder ||
+      dragState?.level !== 'passage-question' ||
+      dragState.passageId !== passageId ||
+      dragState.questionId === targetQuestionId
+    ) {
+      return;
+    }
+
+    const passageItem = displayItems.find(
+      (item) => item.type === 'passage' && item.passage.id === passageId,
+    );
+
+    if (!passageItem) {
+      setDragState(null);
+      return;
+    }
+
+    const reorderedQuestions = reorderItems(
+      passageItem.questions.map((question) => ({
+        ...question,
+        key: `question-${question.id}`,
+      })),
+      `question-${dragState.questionId}`,
+      `question-${targetQuestionId}`,
+    );
+
+    await persistPassageQuestionOrder(passageId, reorderedQuestions);
+  }
 
   async function handleDeleteExam() {
     const confirmed = window.confirm('Delete this exam? This will remove its questions and passages too.');
@@ -150,6 +577,12 @@ export default function ExamDetailPage() {
 
     try {
       await deletePassageApi(passageId);
+      if (editingPassageId === passageId) {
+        setEditingPassageId(null);
+      }
+      if (creatingPassageQuestionId === passageId) {
+        setCreatingPassageQuestionId(null);
+      }
       await loadExamDetail();
     } catch (error) {
       setErrorMessage(error.message);
@@ -173,7 +606,7 @@ export default function ExamDetailPage() {
       <header className="page-header">
         <div>
           <h2>Exam Workspace</h2>
-          <p>Edit exam settings and manage questions from the same dashboard-style page.</p>
+          <p>Change question order and passage order in one place, then preview the final mixed layout below.</p>
         </div>
         <div className="action-row">
           <button type="button" className="button-danger" onClick={handleDeleteExam}>
@@ -189,7 +622,7 @@ export default function ExamDetailPage() {
         <div className="detail-meta">
           <span className={`pill ${getStatusClassName(exam.status)}`}>{exam.status}</span>
           <span className="pill">{exam.duration} minutes</span>
-          <span className="pill">{exam.questionCount} questions</span>
+          <span className="pill">{totalVisibleQuestions} questions</span>
           <span className="pill">
             {exam.passages?.length || 0} passage{(exam.passages?.length || 0) === 1 ? '' : 's'}
           </span>
@@ -244,7 +677,7 @@ export default function ExamDetailPage() {
               <div className="section-heading">
                 <div>
                   <h3>Add Standalone Question</h3>
-                  <p className="muted">Create a new question directly from the exam workspace.</p>
+                  <p className="muted">Set `Question order` if this question should appear before or after a passage block.</p>
                 </div>
                 <button type="button" className="button-primary" onClick={() => setIsCreatingQuestion(true)}>
                   Add question
@@ -268,131 +701,111 @@ export default function ExamDetailPage() {
               }}
             />
           )}
+
+          <article className="surface-card dashboard-card compact-cta-card">
+            <div className="section-heading">
+              <div>
+                <h3>Add Passage</h3>
+                <p className="muted">Create a passage block and give it a `Passage order` to place it between questions.</p>
+              </div>
+              <Link className="button-primary" to={`/teacher/exams/${examId}/passages/new`}>
+                Create passage
+              </Link>
+            </div>
+          </article>
         </section>
       </div>
 
-      <section className="detail-section" id="questions">
+      <section className="detail-section" id="exam-order">
         <div className="section-heading">
           <div>
-            <h3>Standalone Questions</h3>
-            <p className="muted">These questions belong directly to the exam, outside of a passage.</p>
+            <h3>Exam Order Preview</h3>
+            <p className="muted">
+              Drag cards to reorder standalone questions and passage blocks. Inside a passage, drag
+              the question cards to change their order too.
+            </p>
           </div>
+          {isSavingOrder ? <span className="pill">Saving order...</span> : null}
         </div>
 
-        {exam.questions?.length ? (
+        {keyedDisplayItems.length ? (
           <div className="question-list">
-            {exam.questions.map((question, index) => (
-              <QuestionCard
-                key={question.id}
-                question={question}
-                indexLabel={`Question ${index + 1}`}
-                isEditing={editingQuestionId === question.id}
-                onStartEdit={setEditingQuestionId}
-                onCancelEdit={() => setEditingQuestionId(null)}
-                onSaveEdit={async (questionId, payload) => {
-                  await updateTeacherQuestionApi(examId, questionId, payload);
-                  setEditingQuestionId(null);
-                  await loadExamDetail();
-                }}
-                onDelete={handleDeleteQuestion}
-              />
-            ))}
+            {keyedDisplayItems.map((item) =>
+              item.type === 'question' ? (
+                <QuestionCard
+                  key={item.question.id}
+                  question={item.question}
+                  indexLabel={`Question ${item.questionNumber}`}
+                  isEditing={editingQuestionId === item.question.id}
+                  onStartEdit={setEditingQuestionId}
+                  onCancelEdit={() => setEditingQuestionId(null)}
+                  onSaveEdit={async (questionId, payload) => {
+                    await updateTeacherQuestionApi(examId, questionId, payload);
+                    setEditingQuestionId(null);
+                    await loadExamDetail();
+                  }}
+                  onDelete={handleDeleteQuestion}
+                  isDragging={dragState?.level === 'top-level' && dragState.itemKey === item.key}
+                  onDragStart={(event) => handleTopLevelDragStart(event, item.key)}
+                  onDragOver={handleTopLevelDragOver}
+                  onDrop={(event) => handleTopLevelDrop(event, item.key)}
+                  onDragEnd={handleDragEnd}
+                  isDropEnabled
+                />
+              ) : (
+                <PassageCard
+                  key={item.passage.id}
+                  passage={item.passage}
+                  questions={item.questions}
+                  isEditing={editingPassageId === item.passage.id}
+                  isAddingQuestion={creatingPassageQuestionId === item.passage.id}
+                  onStartEdit={setEditingPassageId}
+                  onCancelEdit={() => setEditingPassageId(null)}
+                  onSaveEdit={async (passageId, payload) => {
+                    await updatePassageApi(passageId, payload);
+                    setEditingPassageId(null);
+                    await loadExamDetail();
+                  }}
+                  onToggleAddQuestion={setCreatingPassageQuestionId}
+                  onAddQuestion={async (passageId, payload) => {
+                    await addQuestionToPassageApi(passageId, payload);
+                    setCreatingPassageQuestionId(null);
+                    await loadExamDetail();
+                  }}
+                  onDelete={handleDeletePassage}
+                  editingQuestionId={editingQuestionId}
+                  onStartEditQuestion={setEditingQuestionId}
+                  onCancelEditQuestion={() => setEditingQuestionId(null)}
+                  onSaveEditQuestion={async (questionId, payload) => {
+                    await updateTeacherQuestionApi(examId, questionId, payload);
+                    setEditingQuestionId(null);
+                    await loadExamDetail();
+                  }}
+                  onDeleteQuestion={handleDeleteQuestion}
+                  draggingQuestionId={
+                    dragState?.level === 'passage-question' && dragState.passageId === item.passage.id
+                      ? dragState.questionId
+                      : null
+                  }
+                  onQuestionDragStart={(event, questionId) =>
+                    handlePassageQuestionDragStart(event, item.passage.id, questionId)
+                  }
+                  onQuestionDragOver={handlePassageQuestionDragOver}
+                  onQuestionDrop={(event, questionId) =>
+                    handlePassageQuestionDrop(event, item.passage.id, questionId)
+                  }
+                  isDragging={dragState?.level === 'top-level' && dragState.itemKey === item.key}
+                  onDragStart={(event) => handleTopLevelDragStart(event, item.key)}
+                  onDragOver={handleTopLevelDragOver}
+                  onDrop={(event) => handleTopLevelDrop(event, item.key)}
+                  onDragEnd={handleDragEnd}
+                  isDropEnabled
+                />
+              ),
+            )}
           </div>
         ) : (
-          <div className="empty-state">This exam does not contain any standalone questions yet.</div>
-        )}
-      </section>
-
-      <section className="detail-section" id="passages">
-        <div className="section-heading">
-          <div>
-            <h3>Passages</h3>
-            <p className="muted">Passages still have their own creation flow, but question editing is now inline here.</p>
-          </div>
-          <Link className="button-primary" to={`/teacher/exams/${examId}/passages/new`}>
-            Create passage
-          </Link>
-        </div>
-
-        {exam.passages?.length ? (
-          <div className="question-list">
-            {exam.passages.map((passage, passageIndex) => (
-              <article key={passage.id} className="surface-card passage-card dashboard-card">
-                <div className="section-heading">
-                  <div>
-                    <h3>Passage {passageIndex + 1}</h3>
-                    <p className="muted">
-                      {passage.questions?.length || 0} linked question
-                      {(passage.questions?.length || 0) === 1 ? '' : 's'}
-                    </p>
-                  </div>
-                  <div className="action-row">
-                    <button
-                      type="button"
-                      className="button-secondary"
-                      onClick={() =>
-                        setCreatingPassageQuestionId((current) =>
-                          current === passage.id ? null : passage.id,
-                        )
-                      }
-                    >
-                      Add passage question
-                    </button>
-                    <button type="button" className="button-danger" onClick={() => handleDeletePassage(passage.id)}>
-                      Delete passage
-                    </button>
-                  </div>
-                </div>
-
-                <div className="passage-content">{passage.content}</div>
-
-                {creatingPassageQuestionId === passage.id ? (
-                  <div className="embedded-editor-block">
-                    <QuestionEditorForm
-                      initialForm={buildQuestionInitialForm()}
-                      heading="Add Passage Question"
-                      description="Create a new question inside this passage without leaving the exam workspace."
-                      submitLabel="Add passage question"
-                      submittingLabel="Adding passage question..."
-                      embedded
-                      cardClassName="embedded-form-card"
-                      onCancel={() => setCreatingPassageQuestionId(null)}
-                      onSubmit={async (payload) => {
-                        await addQuestionToPassageApi(passage.id, payload);
-                        setCreatingPassageQuestionId(null);
-                        await loadExamDetail();
-                      }}
-                    />
-                  </div>
-                ) : null}
-
-                {passage.questions?.length ? (
-                  <div className="question-list passage-question-list">
-                    {passage.questions.map((question, questionIndex) => (
-                      <QuestionCard
-                        key={question.id}
-                        question={question}
-                        indexLabel={`Passage Question ${questionIndex + 1}`}
-                        isEditing={editingQuestionId === question.id}
-                        onStartEdit={setEditingQuestionId}
-                        onCancelEdit={() => setEditingQuestionId(null)}
-                        onSaveEdit={async (questionId, payload) => {
-                          await updateTeacherQuestionApi(examId, questionId, payload);
-                          setEditingQuestionId(null);
-                          await loadExamDetail();
-                        }}
-                        onDelete={handleDeleteQuestion}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="empty-state">This passage does not have any questions yet.</div>
-                )}
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">This exam does not contain any passages yet.</div>
+          <div className="empty-state">This exam does not contain any questions or passages yet.</div>
         )}
       </section>
     </section>

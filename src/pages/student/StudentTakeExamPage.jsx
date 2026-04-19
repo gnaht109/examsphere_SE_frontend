@@ -1,21 +1,26 @@
 import { Link, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { getPublishedStudentExamDetailApi } from '../../api/studentExamApi.js';
+import { buildExamDisplayItems, countDisplayQuestions } from '../../utils/examOrdering.js';
 
-function flattenQuestions(exam) {
-  const standalone = (exam?.questions || []).map((question) => ({
-    ...question,
-    sourceLabel: 'Standalone',
-  }));
-
-  const passageQuestions = (exam?.passages || []).flatMap((passage, passageIndex) =>
-    (passage.questions || []).map((question) => ({
-      ...question,
-      sourceLabel: `Passage ${passageIndex + 1}`,
-    })),
+function QuestionOptions({ question, answers, onSelectAnswer }) {
+  return (
+    <ul className="option-list">
+      {question.options?.map((option) => (
+        <li key={option.id}>
+          <label className="student-option">
+            <input
+              type="radio"
+              name={`question-${question.id}`}
+              checked={answers[question.id] === option.id}
+              onChange={() => onSelectAnswer(question.id, option.id)}
+            />
+            <span>{option.content}</span>
+          </label>
+        </li>
+      ))}
+    </ul>
   );
-
-  return [...standalone, ...passageQuestions];
 }
 
 export default function StudentTakeExamPage() {
@@ -54,7 +59,8 @@ export default function StudentTakeExamPage() {
     };
   }, [examId]);
 
-  const allQuestions = useMemo(() => flattenQuestions(exam), [exam]);
+  const displayItems = useMemo(() => buildExamDisplayItems(exam), [exam]);
+  const allQuestionsCount = useMemo(() => countDisplayQuestions(displayItems), [displayItems]);
   const answeredCount = useMemo(
     () => Object.values(answers).filter((value) => value !== null && value !== undefined).length,
     [answers],
@@ -72,10 +78,7 @@ export default function StudentTakeExamPage() {
       <header className="page-header">
         <div>
           <h2>Take Exam</h2>
-          <p>
-            This is the first student exam-taking screen. It uses the published exam detail
-            endpoint, and the backend already hides `isCorrect` values from the response.
-          </p>
+          <p>Questions now follow the teacher-defined order, including passage blocks placed between standalone questions.</p>
         </div>
         <Link className="button-secondary" to="/student/exams">
           Back to Published Exams
@@ -91,7 +94,7 @@ export default function StudentTakeExamPage() {
             <div className="detail-meta">
               <span className="pill pill-published">{exam.status}</span>
               <span className="pill">{exam.duration} minutes</span>
-              <span className="pill">{allQuestions.length} visible questions</span>
+              <span className="pill">{allQuestionsCount} visible questions</span>
               <span className="pill">{answeredCount} answered</span>
             </div>
 
@@ -101,100 +104,59 @@ export default function StudentTakeExamPage() {
 
           <div className="student-exam-grid">
             <section className="question-list">
-              {exam.questions?.length ? (
+              {displayItems.length ? (
                 <div className="detail-section">
                   <div className="section-heading">
                     <div>
-                      <h3>Standalone Questions</h3>
-                      <p className="muted">Questions that are not attached to a reading passage.</p>
+                      <h3>Exam Questions</h3>
+                      <p className="muted">Standalone questions and passage groups appear in one continuous order.</p>
                     </div>
                   </div>
 
-                  {exam.questions.map((question, index) => (
-                    <article key={question.id} className="surface-card question-card">
-                      <h3>
-                        Question {index + 1}: {question.content}
-                      </h3>
-                      <p className="muted">
-                        Type: {question.questionType} | Points: {question.points ?? 'Not set'}
-                      </p>
+                  {displayItems.map((item) =>
+                    item.type === 'question' ? (
+                      <article key={item.question.id} className="surface-card question-card">
+                        <h3>
+                          Question {item.questionNumber}: {item.question.content}
+                        </h3>
+                        <p className="muted">
+                          Type: {item.question.questionType} | Points: {item.question.points ?? 'Not set'}
+                        </p>
 
-                      <ul className="option-list">
-                        {question.options?.map((option) => (
-                          <li key={option.id}>
-                            <label className="student-option">
-                              <input
-                                type="radio"
-                                name={`question-${question.id}`}
-                                checked={answers[question.id] === option.id}
-                                onChange={() => selectAnswer(question.id, option.id)}
-                              />
-                              <span>{option.content}</span>
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
-                    </article>
-                  ))}
-                </div>
-              ) : null}
+                        <QuestionOptions question={item.question} answers={answers} onSelectAnswer={selectAnswer} />
+                      </article>
+                    ) : (
+                      <article key={item.passage.id} className="surface-card passage-card">
+                        <h3>Passage</h3>
+                        <div className="passage-content">{item.passage.content}</div>
 
-              {exam.passages?.length ? (
-                <div className="detail-section">
-                  <div className="section-heading">
-                    <div>
-                      <h3>Passage Questions</h3>
-                      <p className="muted">Reading sections with shared passage content.</p>
-                    </div>
-                  </div>
+                        <div className="question-list passage-question-list">
+                          {item.questions.map((question) => (
+                            <article key={question.id} className="question-card passage-question-card">
+                              <h3>
+                                Question {question.questionNumber}: {question.content}
+                              </h3>
+                              <p className="muted">
+                                Type: {question.questionType} | Points: {question.points ?? 'Not set'}
+                              </p>
 
-                  {exam.passages.map((passage, passageIndex) => (
-                    <article key={passage.id} className="surface-card passage-card">
-                      <h3>Passage {passageIndex + 1}</h3>
-                      <div className="passage-content">{passage.content}</div>
-
-                      <div className="question-list passage-question-list">
-                        {passage.questions?.map((question, questionIndex) => (
-                          <article key={question.id} className="question-card passage-question-card">
-                            <h3>
-                              Passage Question {questionIndex + 1}: {question.content}
-                            </h3>
-                            <p className="muted">
-                              Type: {question.questionType} | Points: {question.points ?? 'Not set'}
-                            </p>
-
-                            <ul className="option-list">
-                              {question.options?.map((option) => (
-                                <li key={option.id}>
-                                  <label className="student-option">
-                                    <input
-                                      type="radio"
-                                      name={`question-${question.id}`}
-                                      checked={answers[question.id] === option.id}
-                                      onChange={() => selectAnswer(question.id, option.id)}
-                                    />
-                                    <span>{option.content}</span>
-                                  </label>
-                                </li>
-                              ))}
-                            </ul>
-                          </article>
-                        ))}
-                      </div>
-                    </article>
-                  ))}
+                              <QuestionOptions question={question} answers={answers} onSelectAnswer={selectAnswer} />
+                            </article>
+                          ))}
+                        </div>
+                      </article>
+                    ),
+                  )}
                 </div>
               ) : null}
             </section>
 
             <aside className="surface-card student-sidebar">
               <h3>Answer Progress</h3>
-              <p className="muted">
-                This local tracker helps students see what they have answered so far.
-              </p>
+              <p className="muted">This local tracker helps students see what they have answered so far.</p>
 
               <div className="student-progress">
-                <strong>{answeredCount}</strong> / {allQuestions.length || 0} answered
+                <strong>{answeredCount}</strong> / {allQuestionsCount || 0} answered
               </div>
 
               <div className="empty-state">

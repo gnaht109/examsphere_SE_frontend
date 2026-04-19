@@ -89,7 +89,8 @@ export default function ExamImportForm({ onImport, cancelTo }) {
                 <h3>Template</h3>
                 <p className="muted">
                   Put exam metadata at the top, then a question table. Use the `Passage` column to
-                  group questions under the same reading block.
+                  group questions under the same reading block, and `Question Order` /
+                  `Passage Order` when you want a strict mixed layout.
                 </p>
               </div>
               <a className="button-secondary" href={templateHref} download="exam-import-template.csv">
