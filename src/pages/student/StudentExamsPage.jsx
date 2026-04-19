@@ -38,13 +38,14 @@ export default function StudentExamsPage() {
   }, []);
 
   return (
-    <section>
-      <header className="page-header">
-        <div>
-          <h2>Published Exams</h2>
+    <section className="student-page student-catalog-page">
+      <header className="student-page-hero surface-card">
+        <div className="student-page-hero-copy">
+          <span className="student-page-kicker">Published Exams</span>
+          <h2>Choose an exam and start when you are ready</h2>
           <p>
-            This page is the student-facing published exam catalog. It only reads the
-            `/api/student/exams` endpoint.
+            Browse the student-facing exam catalog, review duration and question count, then open an
+            exam in the one-question player.
           </p>
         </div>
       </header>
@@ -57,26 +58,30 @@ export default function StudentExamsPage() {
       ) : null}
 
       {!isLoading && !errorMessage && exams.length > 0 ? (
-        <div className="exam-grid">
+        <div className="student-catalog-grid">
           {exams.map((exam) => (
-            <article key={exam.id} className="surface-card exam-card">
-              <div className="exam-meta">
+            <article key={exam.id} className="surface-card student-exam-catalog-card">
+              <div className="student-exam-catalog-topline">
                 <span className="pill pill-published">{exam.status}</span>
                 <span className="pill">{exam.duration} minutes</span>
                 <span className="pill">{exam.questionCount} questions</span>
               </div>
 
               <h3>{exam.title}</h3>
-              <p className="muted">{exam.description || 'No description provided.'}</p>
+              <p className="student-exam-catalog-description">
+                {exam.description || 'No description provided.'}
+              </p>
 
-              <div className="exam-meta">
+              <div className="student-exam-catalog-meta">
                 <span className="muted">Teacher: {exam.createdByUsername}</span>
                 <span className="muted">Updated: {formatDateTime(exam.updatedAt)}</span>
               </div>
 
-              <Link className="button-primary" to={`/student/exams/${exam.id}`}>
-                Open exam
-              </Link>
+              <div className="student-exam-catalog-actions">
+                <Link className="button-primary" to={`/student/exams/${exam.id}`}>
+                  Open exam
+                </Link>
+              </div>
             </article>
           ))}
         </div>

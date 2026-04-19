@@ -1,27 +1,13 @@
 import { Link, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
+import StudentExamNavigator from '../../components/student/StudentExamNavigator.jsx';
+import StudentExamQuestionView from '../../components/student/StudentExamQuestionView.jsx';
 import { getPublishedStudentExamDetailApi } from '../../api/studentExamApi.js';
-import { buildExamDisplayItems, countDisplayQuestions } from '../../utils/examOrdering.js';
-
-function QuestionOptions({ question, answers, onSelectAnswer }) {
-  return (
-    <ul className="option-list">
-      {question.options?.map((option) => (
-        <li key={option.id}>
-          <label className="student-option">
-            <input
-              type="radio"
-              name={`question-${question.id}`}
-              checked={answers[question.id] === option.id}
-              onChange={() => onSelectAnswer(question.id, option.id)}
-            />
-            <span>{option.content}</span>
-          </label>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import {
+  buildExamDisplayItems,
+  countDisplayQuestions,
+  flattenDisplayQuestions,
+} from '../../utils/examOrdering.js';
 
 export default function StudentTakeExamPage() {
   const { examId } = useParams();
@@ -29,6 +15,8 @@ export default function StudentTakeExamPage() {
   const [answers, setAnswers] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -41,6 +29,8 @@ export default function StudentTakeExamPage() {
         const data = await getPublishedStudentExamDetailApi(examId);
         if (!ignore) {
           setExam(data);
+          setCurrentQuestionIndex(0);
+          setSecondsRemaining((data.duration || 0) * 60);
         }
       } catch (error) {
         if (!ignore) {
@@ -59,12 +49,28 @@ export default function StudentTakeExamPage() {
     };
   }, [examId]);
 
+  useEffect(() => {
+    if (isLoading || !exam || secondsRemaining <= 0) {
+      return undefined;
+    }
+
+    const timerId = window.setInterval(() => {
+      setSecondsRemaining((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [exam, isLoading, secondsRemaining]);
+
   const displayItems = useMemo(() => buildExamDisplayItems(exam), [exam]);
+  const questionFlow = useMemo(() => flattenDisplayQuestions(displayItems), [displayItems]);
   const allQuestionsCount = useMemo(() => countDisplayQuestions(displayItems), [displayItems]);
   const answeredCount = useMemo(
     () => Object.values(answers).filter((value) => value !== null && value !== undefined).length,
     [answers],
   );
+  const currentItem = questionFlow[currentQuestionIndex] || null;
 
   function selectAnswer(questionId, optionId) {
     setAnswers((current) => ({
@@ -73,12 +79,27 @@ export default function StudentTakeExamPage() {
     }));
   }
 
+  function goToPreviousQuestion() {
+    setCurrentQuestionIndex((current) => Math.max(0, current - 1));
+  }
+
+  function goToNextQuestion() {
+    setCurrentQuestionIndex((current) => Math.min(questionFlow.length - 1, current + 1));
+  }
+
+  function jumpToQuestion(index) {
+    setCurrentQuestionIndex(index);
+  }
+
   return (
-    <section className="detail-layout">
+    <section className="detail-layout student-taking-page">
       <header className="page-header">
         <div>
           <h2>Take Exam</h2>
-          <p>Questions now follow the teacher-defined order, including passage blocks placed between standalone questions.</p>
+          <p>
+            Work through the exam one question at a time, jump with the question bubbles, and keep
+            an eye on your progress from the left panel.
+          </p>
         </div>
         <Link className="button-secondary" to="/student/exams">
           Back to Published Exams
@@ -90,7 +111,7 @@ export default function StudentTakeExamPage() {
 
       {!isLoading && !errorMessage && exam ? (
         <>
-          <article className="surface-card detail-summary">
+          <article className="surface-card detail-summary student-exam-summary">
             <div className="detail-meta">
               <span className="pill pill-published">{exam.status}</span>
               <span className="pill">{exam.duration} minutes</span>
@@ -102,68 +123,26 @@ export default function StudentTakeExamPage() {
             <p className="muted">{exam.description || 'No description provided.'}</p>
           </article>
 
-          <div className="student-exam-grid">
-            <section className="question-list">
-              {displayItems.length ? (
-                <div className="detail-section">
-                  <div className="section-heading">
-                    <div>
-                      <h3>Exam Questions</h3>
-                      <p className="muted">Standalone questions and passage groups appear in one continuous order.</p>
-                    </div>
-                  </div>
+          <div className="student-exam-grid student-exam-player">
+            <StudentExamNavigator
+              questions={questionFlow}
+              currentIndex={currentQuestionIndex}
+              answers={answers}
+              secondsRemaining={secondsRemaining}
+              onJumpToQuestion={jumpToQuestion}
+            />
 
-                  {displayItems.map((item) =>
-                    item.type === 'question' ? (
-                      <article key={item.question.id} className="surface-card question-card">
-                        <h3>
-                          Question {item.questionNumber}: {item.question.content}
-                        </h3>
-                        <p className="muted">
-                          Type: {item.question.questionType} | Points: {item.question.points ?? 'Not set'}
-                        </p>
-
-                        <QuestionOptions question={item.question} answers={answers} onSelectAnswer={selectAnswer} />
-                      </article>
-                    ) : (
-                      <article key={item.passage.id} className="surface-card passage-card">
-                        <h3>Passage</h3>
-                        <div className="passage-content">{item.passage.content}</div>
-
-                        <div className="question-list passage-question-list">
-                          {item.questions.map((question) => (
-                            <article key={question.id} className="question-card passage-question-card">
-                              <h3>
-                                Question {question.questionNumber}: {question.content}
-                              </h3>
-                              <p className="muted">
-                                Type: {question.questionType} | Points: {question.points ?? 'Not set'}
-                              </p>
-
-                              <QuestionOptions question={question} answers={answers} onSelectAnswer={selectAnswer} />
-                            </article>
-                          ))}
-                        </div>
-                      </article>
-                    ),
-                  )}
-                </div>
-              ) : null}
+            <section className="student-question-stage">
+              <StudentExamQuestionView
+                item={currentItem}
+                answers={answers}
+                onSelectAnswer={selectAnswer}
+                onPrevious={goToPreviousQuestion}
+                onNext={goToNextQuestion}
+                hasPrevious={currentQuestionIndex > 0}
+                hasNext={currentQuestionIndex < questionFlow.length - 1}
+              />
             </section>
-
-            <aside className="surface-card student-sidebar">
-              <h3>Answer Progress</h3>
-              <p className="muted">This local tracker helps students see what they have answered so far.</p>
-
-              <div className="student-progress">
-                <strong>{answeredCount}</strong> / {allQuestionsCount || 0} answered
-              </div>
-
-              <div className="empty-state">
-                Submit and grading are not connected yet because the current backend shared with me
-                does not expose a student submission endpoint in the frontend contract.
-              </div>
-            </aside>
           </div>
         </>
       ) : null}

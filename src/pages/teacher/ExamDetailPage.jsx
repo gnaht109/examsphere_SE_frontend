@@ -1,8 +1,9 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import ExamEditorForm from '../../components/forms/ExamEditorForm.jsx';
-import PassageEditorForm from '../../components/forms/PassageEditorForm.jsx';
 import QuestionEditorForm from '../../components/forms/QuestionEditorForm.jsx';
+import ExamWorkspacePassageCard from '../../components/teacher/ExamWorkspacePassageCard.jsx';
+import ExamWorkspaceQuestionCard from '../../components/teacher/ExamWorkspaceQuestionCard.jsx';
 import {
   addQuestionToPassageApi,
   addTeacherQuestionApi,
@@ -15,332 +16,16 @@ import {
   updateTeacherExamApi,
   updateTeacherQuestionApi,
 } from '../../api/teacherExamApi.js';
-import { formatDateTime, getStatusClassName } from '../../utils/formatters.js';
 import { buildExamDisplayItems, countDisplayQuestions } from '../../utils/examOrdering.js';
+import { formatDateTime, getStatusClassName } from '../../utils/formatters.js';
 import { buildQuestionInitialForm } from '../../utils/questionForm.js';
-
-function buildQuestionPayload(question, questionOrder = question.questionOrder) {
-  return {
-    content: question.content,
-    points: question.points ?? 1,
-    type: question.questionType,
-    explaination: question.explaination || '',
-    questionOrder,
-    options:
-      question.options?.map((option, index) => ({
-        content: option.content,
-        isCorrect: Boolean(option.isCorrect),
-        optionOrder: option.optionOrder ?? index + 1,
-      })) || [],
-  };
-}
-
-function buildPassagePayload(passage, passageOrder = passage.passageOrder) {
-  return {
-    content: passage.content,
-    passageOrder,
-    questions: [],
-  };
-}
-
-function reorderItems(items, draggedKey, targetKey) {
-  const nextItems = [...items];
-  const draggedIndex = nextItems.findIndex((item) => item.key === draggedKey);
-  const targetIndex = nextItems.findIndex((item) => item.key === targetKey);
-
-  if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
-    return items;
-  }
-
-  const [draggedItem] = nextItems.splice(draggedIndex, 1);
-  nextItems.splice(targetIndex, 0, draggedItem);
-  return nextItems;
-}
-
-function applyTopLevelOrderToExam(exam, reorderedItems) {
-  if (!exam) {
-    return exam;
-  }
-
-  const questionOrderMap = new Map();
-  const passageOrderMap = new Map();
-
-  reorderedItems.forEach((item, index) => {
-    const nextOrder = index + 1;
-
-    if (item.type === 'question') {
-      questionOrderMap.set(item.question.id, nextOrder);
-      return;
-    }
-
-    passageOrderMap.set(item.passage.id, nextOrder);
-  });
-
-  return {
-    ...exam,
-    questions: (exam.questions || []).map((question) => ({
-      ...question,
-      questionOrder: questionOrderMap.get(question.id) ?? question.questionOrder,
-    })),
-    passages: (exam.passages || []).map((passage) => ({
-      ...passage,
-      passageOrder: passageOrderMap.get(passage.id) ?? passage.passageOrder,
-    })),
-  };
-}
-
-function applyPassageQuestionOrderToExam(exam, passageId, reorderedQuestions) {
-  if (!exam) {
-    return exam;
-  }
-
-  const questionOrderMap = new Map(
-    reorderedQuestions.map((question, index) => [question.id, index + 1]),
-  );
-
-  return {
-    ...exam,
-    passages: (exam.passages || []).map((passage) =>
-      passage.id !== passageId
-        ? passage
-        : {
-            ...passage,
-            questions: (passage.questions || []).map((question) => ({
-              ...question,
-              questionOrder: questionOrderMap.get(question.id) ?? question.questionOrder,
-            })),
-          },
-    ),
-  };
-}
-
-function DragHandle({ title, onDragStart, onDragEnd }) {
-  return (
-    <span
-      className="drag-chip"
-      title={title}
-      draggable
-      onDragStart={(event) => {
-        event.stopPropagation();
-        onDragStart(event);
-      }}
-      onDragEnd={(event) => {
-        event.stopPropagation();
-        onDragEnd?.(event);
-      }}
-    >
-      Drag
-    </span>
-  );
-}
-
-function QuestionCard({
-  question,
-  indexLabel,
-  isEditing,
-  onStartEdit,
-  onCancelEdit,
-  onSaveEdit,
-  onDelete,
-  isDragging = false,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
-  isDropEnabled = false,
-  dragLabel = 'Drag to reorder',
-}) {
-  return (
-    <article
-      className={`surface-card question-card dashboard-card ${isDropEnabled ? 'draggable-card' : ''} ${isDragging ? 'is-dragging' : ''}`}
-      id={`question-${question.id}`}
-      onDragOver={isDropEnabled ? onDragOver : undefined}
-      onDrop={isDropEnabled ? onDrop : undefined}
-    >
-      <div className="section-heading">
-        <div>
-          <h3>
-            {indexLabel}: {question.content}
-          </h3>
-          <p className="muted">
-            Type: {question.questionType} | Points: {question.points ?? 'Not set'} | Order:{' '}
-            {question.questionOrder ?? 'Auto'}
-          </p>
-        </div>
-        <div className="action-row">
-          {onDragStart ? (
-            <DragHandle title={dragLabel} onDragStart={onDragStart} onDragEnd={onDragEnd} />
-          ) : null}
-          <button type="button" className="button-secondary" onClick={() => onStartEdit(question.id)}>
-            {isEditing ? 'Editing' : 'Edit inline'}
-          </button>
-          <button type="button" className="button-danger" onClick={() => onDelete(question.id)}>
-            Delete
-          </button>
-        </div>
-      </div>
-
-      {question.options?.length ? (
-        <ul className="option-list">
-          {question.options.map((option, optionIndex) => (
-            <li key={option.id} className={`option-item ${option.isCorrect ? 'correct' : ''}`}>
-              {String.fromCharCode(65 + optionIndex)}. {option.content}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="empty-state">This question does not have options yet.</div>
-      )}
-
-      {isEditing ? (
-        <div className="embedded-editor-block">
-          <QuestionEditorForm
-            initialForm={buildQuestionInitialForm(question)}
-            heading="Edit Question"
-            description="Update the question directly from the exam workspace."
-            submitLabel="Save question"
-            submittingLabel="Saving question..."
-            embedded
-            cardClassName="embedded-form-card"
-            onCancel={onCancelEdit}
-            onSubmit={(payload) => onSaveEdit(question.id, payload)}
-          />
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-function PassageCard({
-  passage,
-  questions,
-  isEditing,
-  isAddingQuestion,
-  onStartEdit,
-  onCancelEdit,
-  onSaveEdit,
-  onToggleAddQuestion,
-  onAddQuestion,
-  onDelete,
-  editingQuestionId,
-  onStartEditQuestion,
-  onCancelEditQuestion,
-  onSaveEditQuestion,
-  onDeleteQuestion,
-  draggingQuestionId,
-  onQuestionDragStart,
-  onQuestionDragOver,
-  onQuestionDrop,
-  isDragging = false,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
-  isDropEnabled = false,
-}) {
-  return (
-    <article
-      className={`surface-card passage-card dashboard-card ${isDropEnabled ? 'draggable-card' : ''} ${isDragging ? 'is-dragging' : ''}`}
-      onDragOver={isDropEnabled ? onDragOver : undefined}
-      onDrop={isDropEnabled ? onDrop : undefined}
-    >
-      <div className="section-heading">
-        <div>
-          <h3>Passage</h3>
-          <p className="muted">
-            Order: {passage.passageOrder ?? 'Auto'} | {questions.length} linked question
-            {questions.length === 1 ? '' : 's'}
-          </p>
-        </div>
-        <div className="action-row">
-          {onDragStart ? (
-            <DragHandle
-              title="Drag to move this whole passage block"
-              onDragStart={onDragStart}
-              onDragEnd={onDragEnd}
-            />
-          ) : null}
-          <button type="button" className="button-secondary" onClick={() => onStartEdit(passage.id)}>
-            {isEditing ? 'Editing' : 'Edit passage'}
-          </button>
-          <button
-            type="button"
-            className="button-secondary"
-            onClick={() => onToggleAddQuestion(isAddingQuestion ? null : passage.id)}
-          >
-            {isAddingQuestion ? 'Adding question' : 'Add passage question'}
-          </button>
-          <button type="button" className="button-danger" onClick={() => onDelete(passage.id)}>
-            Delete passage
-          </button>
-        </div>
-      </div>
-
-      <div className="passage-content">{passage.content}</div>
-
-      {isEditing ? (
-        <div className="embedded-editor-block">
-          <PassageEditorForm
-            initialForm={{
-              content: passage.content,
-              passageOrder: passage.passageOrder ?? '',
-            }}
-            heading="Edit Passage"
-            description="Update the passage content and where the whole block appears in the exam."
-            submitLabel="Save passage"
-            submittingLabel="Saving passage..."
-            embedded
-            cardClassName="embedded-form-card"
-            onCancel={onCancelEdit}
-            onSubmit={(payload) => onSaveEdit(passage.id, payload)}
-          />
-        </div>
-      ) : null}
-
-      {isAddingQuestion ? (
-        <div className="embedded-editor-block">
-          <QuestionEditorForm
-            initialForm={buildQuestionInitialForm()}
-            heading="Add Passage Question"
-            description="Create a new question inside this passage without leaving the exam workspace."
-            submitLabel="Add passage question"
-            submittingLabel="Adding passage question..."
-            embedded
-            cardClassName="embedded-form-card"
-            onCancel={() => onToggleAddQuestion(null)}
-            onSubmit={(payload) => onAddQuestion(passage.id, payload)}
-          />
-        </div>
-      ) : null}
-
-      {questions.length ? (
-        <div className="question-list passage-question-list">
-          {questions.map((question) => (
-            <QuestionCard
-              key={question.id}
-              question={question}
-              indexLabel={`Question ${question.questionNumber}`}
-              isEditing={editingQuestionId === question.id}
-              onStartEdit={onStartEditQuestion}
-              onCancelEdit={onCancelEditQuestion}
-              onSaveEdit={onSaveEditQuestion}
-              onDelete={onDeleteQuestion}
-              isDragging={draggingQuestionId === question.id}
-              onDragStart={(event) => onQuestionDragStart(event, question.id)}
-              onDragOver={onQuestionDragOver}
-              onDrop={(event) => onQuestionDrop(event, question.id)}
-              onDragEnd={onDragEnd}
-              isDropEnabled
-              dragLabel="Drag to reorder questions in this passage"
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">This passage does not have any questions yet.</div>
-      )}
-    </article>
-  );
-}
+import {
+  applyPassageQuestionOrderToExam,
+  applyTopLevelOrderToExam,
+  buildPassagePayload,
+  buildQuestionPayload,
+  reorderItems,
+} from '../../utils/teacherExamWorkspace.js';
 
 export default function ExamDetailPage() {
   const { examId } = useParams();
@@ -354,20 +39,6 @@ export default function ExamDetailPage() {
   const [creatingPassageQuestionId, setCreatingPassageQuestionId] = useState(null);
   const [dragState, setDragState] = useState(null);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
-
-  async function loadExamDetail() {
-    setIsLoading(true);
-    setErrorMessage('');
-
-    try {
-      const data = await getTeacherExamDetailApi(examId);
-      setExam(data);
-    } catch (error) {
-      setErrorMessage(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   useEffect(() => {
     loadExamDetail();
@@ -383,6 +54,76 @@ export default function ExamDetailPage() {
       })),
     [displayItems],
   );
+
+  async function loadExamDetail() {
+    setIsLoading(true);
+    setErrorMessage('');
+
+    try {
+      const data = await getTeacherExamDetailApi(examId);
+      setExam(data);
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleDeleteExam() {
+    const confirmed = window.confirm('Delete this exam? This will remove its questions and passages too.');
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteTeacherExamApi(examId);
+      navigate('/teacher/exams', { replace: true });
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
+  }
+
+  async function handleDeleteQuestion(questionId) {
+    const confirmed = window.confirm('Delete this question?');
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteTeacherQuestionApi(examId, questionId);
+      if (editingQuestionId === questionId) {
+        setEditingQuestionId(null);
+      }
+      await loadExamDetail();
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
+  }
+
+  async function handleDeletePassage(passageId) {
+    const confirmed = window.confirm(
+      'Delete this passage? All questions inside the passage will be removed too.',
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deletePassageApi(passageId);
+      if (editingPassageId === passageId) {
+        setEditingPassageId(null);
+      }
+      if (creatingPassageQuestionId === passageId) {
+        setCreatingPassageQuestionId(null);
+      }
+      await loadExamDetail();
+    } catch (error) {
+      setErrorMessage(error.message);
+    }
+  }
 
   async function persistTopLevelOrder(reorderedItems) {
     setIsSavingOrder(true);
@@ -440,10 +181,7 @@ export default function ExamDetailPage() {
     }
 
     event.dataTransfer.effectAllowed = 'move';
-    setDragState({
-      level: 'top-level',
-      itemKey,
-    });
+    setDragState({ level: 'top-level', itemKey });
   }
 
   function handlePassageQuestionDragStart(event, passageId, questionId) {
@@ -452,11 +190,7 @@ export default function ExamDetailPage() {
     }
 
     event.dataTransfer.effectAllowed = 'move';
-    setDragState({
-      level: 'passage-question',
-      passageId,
-      questionId,
-    });
+    setDragState({ level: 'passage-question', passageId, questionId });
   }
 
   function handleTopLevelDragOver(event) {
@@ -487,7 +221,7 @@ export default function ExamDetailPage() {
 
     event.preventDefault();
 
-    if (isSavingOrder || dragState?.level !== 'top-level' || dragState.itemKey === targetKey) {
+    if (isSavingOrder || dragState.itemKey === targetKey) {
       return;
     }
 
@@ -505,7 +239,6 @@ export default function ExamDetailPage() {
 
     if (
       isSavingOrder ||
-      dragState?.level !== 'passage-question' ||
       dragState.passageId !== passageId ||
       dragState.questionId === targetQuestionId
     ) {
@@ -531,62 +264,6 @@ export default function ExamDetailPage() {
     );
 
     await persistPassageQuestionOrder(passageId, reorderedQuestions);
-  }
-
-  async function handleDeleteExam() {
-    const confirmed = window.confirm('Delete this exam? This will remove its questions and passages too.');
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await deleteTeacherExamApi(examId);
-      navigate('/teacher/exams', { replace: true });
-    } catch (error) {
-      setErrorMessage(error.message);
-    }
-  }
-
-  async function handleDeleteQuestion(questionId) {
-    const confirmed = window.confirm('Delete this question?');
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await deleteTeacherQuestionApi(examId, questionId);
-      if (editingQuestionId === questionId) {
-        setEditingQuestionId(null);
-      }
-      await loadExamDetail();
-    } catch (error) {
-      setErrorMessage(error.message);
-    }
-  }
-
-  async function handleDeletePassage(passageId) {
-    const confirmed = window.confirm(
-      'Delete this passage? All questions inside the passage will be removed too.',
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      await deletePassageApi(passageId);
-      if (editingPassageId === passageId) {
-        setEditingPassageId(null);
-      }
-      if (creatingPassageQuestionId === passageId) {
-        setCreatingPassageQuestionId(null);
-      }
-      await loadExamDetail();
-    } catch (error) {
-      setErrorMessage(error.message);
-    }
   }
 
   if (isLoading) {
@@ -732,7 +409,7 @@ export default function ExamDetailPage() {
           <div className="question-list">
             {keyedDisplayItems.map((item) =>
               item.type === 'question' ? (
-                <QuestionCard
+                <ExamWorkspaceQuestionCard
                   key={item.question.id}
                   question={item.question}
                   indexLabel={`Question ${item.questionNumber}`}
@@ -753,7 +430,7 @@ export default function ExamDetailPage() {
                   isDropEnabled
                 />
               ) : (
-                <PassageCard
+                <ExamWorkspacePassageCard
                   key={item.passage.id}
                   passage={item.passage}
                   questions={item.questions}

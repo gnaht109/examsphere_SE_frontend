@@ -104,3 +104,27 @@ export function countDisplayQuestions(displayItems = []) {
     return total + (item.questions?.length || 0);
   }, 0);
 }
+
+export function flattenDisplayQuestions(displayItems = []) {
+  return displayItems.flatMap((item) => {
+    if (item.type === 'question') {
+      return [
+        {
+          id: item.question.id,
+          question: item.question,
+          questionNumber: item.questionNumber,
+          passage: null,
+          isPassageQuestion: false,
+        },
+      ];
+    }
+
+    return (item.questions || []).map((question) => ({
+      id: question.id,
+      question,
+      questionNumber: question.questionNumber,
+      passage: item.passage,
+      isPassageQuestion: true,
+    }));
+  });
+}
