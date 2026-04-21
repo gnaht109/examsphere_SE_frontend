@@ -1,5 +1,6 @@
 import PassageEditorForm from '../forms/PassageEditorForm.jsx';
 import QuestionEditorForm from '../forms/QuestionEditorForm.jsx';
+import Modal from '../layout/Modal.jsx';
 import DragHandle from './DragHandle.jsx';
 import ExamWorkspaceQuestionCard from './ExamWorkspaceQuestionCard.jsx';
 import { buildQuestionInitialForm } from '../../utils/questionForm.js';
@@ -72,7 +73,7 @@ export default function ExamWorkspacePassageCard({
       <div className="passage-content">{passage.content}</div>
 
       {isEditing ? (
-        <div className="embedded-editor-block">
+        <Modal title="Edit Passage" onClose={onCancelEdit} widthClassName="modal-dialog-wide">
           <PassageEditorForm
             initialForm={{
               content: passage.content,
@@ -83,27 +84,12 @@ export default function ExamWorkspacePassageCard({
             submitLabel="Save passage"
             submittingLabel="Saving passage..."
             embedded
-            cardClassName="embedded-form-card"
+            showEmbeddedHeader={false}
+            cardClassName="embedded-form-card modal-form-card"
             onCancel={onCancelEdit}
             onSubmit={(payload) => onSaveEdit(passage.id, payload)}
           />
-        </div>
-      ) : null}
-
-      {isAddingQuestion ? (
-        <div className="embedded-editor-block">
-          <QuestionEditorForm
-            initialForm={buildQuestionInitialForm()}
-            heading="Add Passage Question"
-            description="Create a new question inside this passage without leaving the exam workspace."
-            submitLabel="Add passage question"
-            submittingLabel="Adding passage question..."
-            embedded
-            cardClassName="embedded-form-card"
-            onCancel={() => onToggleAddQuestion(null)}
-            onSubmit={(payload) => onAddQuestion(passage.id, payload)}
-          />
-        </div>
+        </Modal>
       ) : null}
 
       {questions.length ? (
@@ -131,6 +117,23 @@ export default function ExamWorkspacePassageCard({
       ) : (
         <div className="empty-state">This passage does not have any questions yet.</div>
       )}
+
+      {isAddingQuestion ? (
+        <Modal title="Add Passage Question" onClose={() => onToggleAddQuestion(null)}>
+          <QuestionEditorForm
+            initialForm={buildQuestionInitialForm()}
+            heading="Add Passage Question"
+            description="Create a new question inside this passage without leaving the exam workspace."
+            submitLabel="Add passage question"
+            submittingLabel="Adding passage question..."
+            embedded
+            showEmbeddedHeader={false}
+            cardClassName="embedded-form-card modal-form-card"
+            onCancel={() => onToggleAddQuestion(null)}
+            onSubmit={(payload) => onAddQuestion(passage.id, payload)}
+          />
+        </Modal>
+      ) : null}
     </article>
   );
 }

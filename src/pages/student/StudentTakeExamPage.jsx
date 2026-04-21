@@ -1,9 +1,10 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import StudentExamNavigator from '../../components/student/StudentExamNavigator.jsx';
 import StudentExamQuestionView from '../../components/student/StudentExamQuestionView.jsx';
 import {
   getPublishedStudentExamDetailApi,
+  getStudentAttemptApi,
   getStudentAttemptResultApi,
   saveStudentAttemptAnswerApi,
   startStudentAttemptApi,
@@ -17,6 +18,18 @@ import {
 import { formatDateTime, formatScore } from '../../utils/formatters.js';
 
 const ATTEMPT_STORAGE_KEY = 'examsphere_attempt_answers';
+
+function getResultOptionClassName(option) {
+  if (option.correct) {
+    return 'student-result-option-correct';
+  }
+
+  if (option.selected && !option.correct) {
+    return 'student-result-option-incorrect';
+  }
+
+  return '';
+}
 
 function getStoredAttemptAnswers(attemptId) {
   if (!attemptId) {
@@ -61,6 +74,7 @@ function clearStoredAttemptAnswers(attemptId) {
 
 export default function StudentTakeExamPage() {
   const { examId } = useParams();
+  const [searchParams] = useSearchParams();
   const [exam, setExam] = useState(null);
   const [attempt, setAttempt] = useState(null);
   const [attemptResult, setAttemptResult] = useState(null);
@@ -72,6 +86,7 @@ export default function StudentTakeExamPage() {
   const [isSavingAnswer, setIsSavingAnswer] = useState(false);
   const [isSubmittingAttempt, setIsSubmittingAttempt] = useState(false);
   const [hasAutoSubmitted, setHasAutoSubmitted] = useState(false);
+  const requestedAttemptId = searchParams.get('attemptId');
 
   useEffect(() => {
     let ignore = false;
@@ -81,10 +96,10 @@ export default function StudentTakeExamPage() {
       setErrorMessage('');
 
       try {
-        const [examData, attemptData] = await Promise.all([
-          getPublishedStudentExamDetailApi(examId),
-          startStudentAttemptApi(examId),
-        ]);
+        const examData = await getPublishedStudentExamDetailApi(examId);
+        const attemptData = requestedAttemptId
+          ? await getStudentAttemptApi(requestedAttemptId)
+          : await startStudentAttemptApi(examId);
 
         if (ignore) {
           return;
@@ -121,7 +136,7 @@ export default function StudentTakeExamPage() {
     return () => {
       ignore = true;
     };
-  }, [examId]);
+  }, [examId, requestedAttemptId]);
 
   useEffect(() => {
     if (isLoading || !attempt || attemptResult || secondsRemaining <= 0) {
@@ -302,10 +317,10 @@ export default function StudentTakeExamPage() {
                 </p>
               </article>
 
-              {attemptResult.questions?.map((question) => (
+              {attemptResult.questions?.map((question, questionIndex) => (
                 <article key={question.questionId} className="surface-card student-result-card">
                   <div className="detail-meta">
-                    <span className="pill">Question {question.questionOrder ?? '-'}</span>
+                    <span className="pill">Question {questionIndex + 1}</span>
                     <span className={`pill ${question.correct ? 'pill-published' : 'pill-draft'}`}>
                       {question.correct ? 'Correct' : question.answered ? 'Incorrect' : 'Unanswered'}
                     </span>
@@ -314,13 +329,50 @@ export default function StudentTakeExamPage() {
                     </span>
                   </div>
 
-                  <h3>{question.content}</h3>
-                  <p className="muted">
-                    Your answer: {question.selectedOptionContent || 'No answer submitted'}
-                  </p>
-                  <p className="muted">
-                    Correct answer: {question.correctOptionContent || 'No correct option configured'}
-                  </p>
+                  {question.passageContent ? (
+                    <section className="student-result-passage">
+                      <div className="student-result-passage-label">Passage</div>
+                      <div className="student-result-passage-content">{question.passageContent}</div>
+                    </section>
+                  ) : null}
+
+                  <div className="student-result-question-block">
+                    <div className="student-result-question-label">Question</div>
+                    <h3>{question.content}</h3>
+                  </div>
+
+                  {question.options?.length ? (
+                    <ul className="student-result-option-list">
+                      {question.options.map((option, optionIndex) => (
+                        <li
+                          key={option.optionId}
+                          className={[
+                            'student-result-option',
+                            getResultOptionClassName(option),
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                        >
+                          <div className="student-result-option-copy">
+                            <strong>{String.fromCharCode(65 + optionIndex)}.</strong>
+                            <span>{option.content}</span>
+                          </div>
+                          <div className="student-result-option-flags">
+                            {option.selected ? (
+                              <span className="student-result-option-flag student-result-option-flag-selected">
+                                Your choice
+                              </span>
+                            ) : null}
+                            {option.correct ? (
+                              <span className="student-result-option-flag student-result-option-flag-correct">
+                                Correct
+                              </span>
+                            ) : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </article>
               ))}
             </section>

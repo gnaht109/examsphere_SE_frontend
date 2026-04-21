@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowRight } from '@fortawesome/free-solid-svg-icons';
 import { getPublishedStudentExamsApi } from '../../api/studentExamApi.js';
-import { formatDateTime, formatScore } from '../../utils/formatters.js';
 
 export default function StudentExamsPage() {
   const [exams, setExams] = useState([]);
@@ -39,17 +40,6 @@ export default function StudentExamsPage() {
 
   return (
     <section className="student-page student-catalog-page">
-      <header className="student-page-hero surface-card">
-        <div className="student-page-hero-copy">
-          <span className="student-page-kicker">Published Exams</span>
-          <h2>Choose an exam and start when you are ready</h2>
-          <p>
-            Browse the student-facing exam catalog, review duration and question count, then open an
-            exam in the one-question player.
-          </p>
-        </div>
-      </header>
-
       {errorMessage ? <div className="error-banner">{errorMessage}</div> : null}
       {isLoading ? <div className="empty-state">Loading published exams...</div> : null}
 
@@ -61,26 +51,15 @@ export default function StudentExamsPage() {
         <div className="student-catalog-grid">
           {exams.map((exam) => (
             <article key={exam.id} className="surface-card student-exam-catalog-card">
-              <div className="student-exam-catalog-topline">
-                <span className="pill pill-published">{exam.status}</span>
-                <span className="pill">{exam.duration} minutes</span>
-                <span className="pill">{exam.questionCount} questions</span>
-                <span className="pill">{formatScore(exam.totalScore)} points</span>
-              </div>
-
-              <h3>{exam.title}</h3>
-              <p className="student-exam-catalog-description">
-                {exam.description || 'No description provided.'}
-              </p>
-
-              <div className="student-exam-catalog-meta">
-                <span className="muted">Teacher: {exam.createdByUsername}</span>
-                <span className="muted">Updated: {formatDateTime(exam.updatedAt)}</span>
+              <div className="student-exam-catalog-accent" aria-hidden="true" />
+              <div className="student-exam-catalog-content">
+                <h3>{exam.title}</h3>
+                <p className="student-exam-catalog-teacher">Teacher {exam.createdByUsername}</p>
               </div>
 
               <div className="student-exam-catalog-actions">
                 <Link className="button-primary" to={`/student/exams/${exam.id}`}>
-                  Open exam
+                  <FontAwesomeIcon icon={faArrowRight} />
                 </Link>
               </div>
             </article>

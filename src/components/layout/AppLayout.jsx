@@ -9,11 +9,11 @@ export default function AppLayout() {
   const isTeacher = user?.role === 'TEACHER';
   const isAdmin = user?.role === 'ADMIN';
   const roleLabel = isAdmin ? 'Admin Workspace' : isTeacher ? 'Teacher Workspace' : 'Student Workspace';
-  const roleDescription = isAdmin
-    ? 'Manage protected teacher account creation from the admin area.'
-    : isTeacher
-    ? 'Build exams, publish them, and review the details cleanly.'
-    : 'Browse published exams and take them in a calm, focused student flow.';
+  // const roleDescription = isAdmin
+  //   ? 'Manage protected teacher account creation from the admin area.'
+  //   : isTeacher
+  //   ? 'Build exams, publish them, and review the details cleanly.'
+  //   : 'Browse published exams and take them in a calm, focused student flow.';
   const railItems = isAdmin
     ? [
         { label: 'Dashboard', to: '/admin', end: true },
@@ -27,6 +27,8 @@ export default function AppLayout() {
     : [
         { label: 'Dashboard', to: '/student', end: true },
         { label: 'Published Exams', to: '/student/exams' },
+        { label: 'My Attempts', to: '/student/exams/attempts' },
+        { label: 'My Ongoing Attempts', to: '/student/exams/ongoing' },
       ];
   const profileRoute = railItems[0]?.to || '/';
 
@@ -37,20 +39,13 @@ export default function AppLayout() {
 
   return (
     <div className="app-shell">
-      <div className="app-shell-bg bg-one" />
-      <div className="app-shell-bg bg-two" />
+      
 
       <div className="app-frame dashboard-shell">
         <SideRail items={railItems} footerLabel={roleLabel} />
 
         <main className="page-panel">
-          <header className="page-toolbar surface-card">
-            <div className="page-toolbar-copy">
-              <span className="hero-kicker app-kicker">{roleLabel}</span>
-              <h1>ExamSphere</h1>
-              <p>{roleDescription}</p>
-            </div>
-
+          <header className="page-toolbar">
             <div className="page-toolbar-actions">
               <span className="header-icon-chip" aria-hidden="true" />
               <span className="header-icon-chip outlined" aria-hidden="true" />

@@ -1,7 +1,8 @@
 // src/pages/Dashboard.jsx
 import React, { useEffect, useState } from 'react';
 import { examService } from '../services/examService';
-import { Clock, BookOpen, User } from 'lucide-react';
+import { Clock, User } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   const [exams, setExams] = useState([]);
@@ -37,9 +38,12 @@ const Dashboard = () => {
               <User size={16} />
               <span className="text-xs font-medium">{exam.createdByUsername}</span>
             </div>
-            <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors">
+            <Link
+              to={`/student/exams/${exam.id}`}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors"
+            >
               Take Exam
-            </button>
+            </Link>
           </div>
         </div>
       ))}

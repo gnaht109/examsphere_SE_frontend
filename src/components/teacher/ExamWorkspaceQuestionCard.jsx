@@ -1,4 +1,5 @@
 import QuestionEditorForm from '../forms/QuestionEditorForm.jsx';
+import Modal from '../layout/Modal.jsx';
 import DragHandle from './DragHandle.jsx';
 import { buildQuestionInitialForm } from '../../utils/questionForm.js';
 
@@ -40,7 +41,7 @@ export default function ExamWorkspaceQuestionCard({
             <DragHandle title={dragLabel} onDragStart={onDragStart} onDragEnd={onDragEnd} />
           ) : null}
           <button type="button" className="button-secondary" onClick={() => onStartEdit(question.id)}>
-            {isEditing ? 'Editing' : 'Edit inline'}
+            {isEditing ? 'Editing' : 'Edit question'}
           </button>
           <button type="button" className="button-danger" onClick={() => onDelete(question.id)}>
             Delete
@@ -61,7 +62,7 @@ export default function ExamWorkspaceQuestionCard({
       )}
 
       {isEditing ? (
-        <div className="embedded-editor-block">
+        <Modal title="Edit Question" onClose={onCancelEdit}>
           <QuestionEditorForm
             initialForm={buildQuestionInitialForm(question)}
             heading="Edit Question"
@@ -69,11 +70,12 @@ export default function ExamWorkspaceQuestionCard({
             submitLabel="Save question"
             submittingLabel="Saving question..."
             embedded
-            cardClassName="embedded-form-card"
+            showEmbeddedHeader={false}
+            cardClassName="embedded-form-card modal-form-card"
             onCancel={onCancelEdit}
             onSubmit={(payload) => onSaveEdit(question.id, payload)}
           />
-        </div>
+        </Modal>
       ) : null}
     </article>
   );

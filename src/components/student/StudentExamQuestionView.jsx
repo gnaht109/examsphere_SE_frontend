@@ -21,7 +21,7 @@ export default function StudentExamQuestionView({
           <span className="student-active-question-kicker">
             {item.isPassageQuestion ? 'Passage' : 'Question'}
           </span>
-          <h3>Question {item.questionNumber}</h3>
+          <h3>#{item.questionNumber}</h3>
         </div>
         <span className="student-active-question-type">{item.question.questionType}</span>
       </header>
@@ -34,11 +34,7 @@ export default function StudentExamQuestionView({
       ) : null}
 
       <section className="student-active-prompt">
-        <div className="student-active-prompt-lines" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
+        {/* <div className="student-active-prompt-label">Question prompt</div> */}
         <p>{item.question.content}</p>
       </section>
 

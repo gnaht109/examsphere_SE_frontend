@@ -39,6 +39,7 @@ export default function PassageEditorForm({
   submittingLabel,
   cancelTo,
   embedded = false,
+  showEmbeddedHeader = true,
   onCancel,
   cardClassName = '',
 }) {
@@ -76,14 +77,14 @@ export default function PassageEditorForm({
 
   const content = (
     <>
-      {embedded ? (
+      {embedded && showEmbeddedHeader ? (
         <div className="embedded-form-header">
           <div>
             <h3>{heading}</h3>
             {description ? <p>{description}</p> : null}
           </div>
         </div>
-      ) : (
+      ) : !embedded ? (
         <header className="page-header">
           <div>
             <h2>{heading}</h2>
@@ -93,7 +94,7 @@ export default function PassageEditorForm({
             Back
           </Link>
         </header>
-      )}
+      ) : null}
 
       <div className={['surface-card', 'form-card', cardClassName].filter(Boolean).join(' ')}>
         <form className="stack-lg" onSubmit={handleSubmit} noValidate>

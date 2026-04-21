@@ -83,6 +83,7 @@ export default function QuestionEditorForm({
   submittingLabel,
   cancelTo,
   embedded = false,
+  showEmbeddedHeader = true,
   onCancel,
   cardClassName = '',
 }) {
@@ -170,14 +171,14 @@ export default function QuestionEditorForm({
 
   const content = (
     <>
-      {embedded ? (
+      {embedded && showEmbeddedHeader ? (
         <div className="embedded-form-header">
           <div>
             <h3>{heading}</h3>
             {description ? <p>{description}</p> : null}
           </div>
         </div>
-      ) : (
+      ) : !embedded ? (
         <header className="page-header">
           <div>
             <h2>{heading}</h2>
@@ -187,7 +188,7 @@ export default function QuestionEditorForm({
             Back
           </Link>
         </header>
-      )}
+      ) : null}
 
       <div className={['surface-card', 'form-card', cardClassName].filter(Boolean).join(' ')}>
         <form className="stack-lg" onSubmit={handleSubmit} noValidate>
@@ -205,8 +206,8 @@ export default function QuestionEditorForm({
             {fieldErrors.content ? <div className="field-error">{fieldErrors.content}</div> : null}
           </div>
 
-          <div className="inline-fields">
-            <div className="form-field">
+          <div className="inline-fields question-meta-grid">
+            <div className="form-field question-meta-field">
               <label htmlFor="type">Question type</label>
               <select
                 id="type"
@@ -217,9 +218,12 @@ export default function QuestionEditorForm({
                 <option value={QUESTION_TYPES.MULTIPLE_CHOICE}>Multiple choice</option>
                 <option value={QUESTION_TYPES.TRUE_FALSE}>True / False</option>
               </select>
+              {/* <div className="field-note-slot">
+                <div className="field-help">Choose how students will answer this question.</div>
+              </div> */}
             </div>
 
-            <div className="form-field">
+            <div className="form-field question-meta-field">
               <label htmlFor="points">Points</label>
               <input
                 id="points"
@@ -231,15 +235,17 @@ export default function QuestionEditorForm({
                 onChange={(event) => updateField('points', event.target.value)}
                 placeholder="Optional"
               />
-              {fieldErrors.points ? <div className="field-error">{fieldErrors.points}</div> : null}
-              {!fieldErrors.points ? (
-                <div className="field-help">
-                  Optional. Leave blank to let the backend distribute points from the exam total.
-                </div>
-              ) : null}
+              {/* <div className="field-note-slot">
+                {fieldErrors.points ? <div className="field-error">{fieldErrors.points}</div> : null}
+                {!fieldErrors.points ? (
+                  <div className="field-help">
+                    Optional. Leave blank to let the backend distribute points from the exam total.
+                  </div>
+                ) : null}
+              </div> */}
             </div>
 
-            <div className="form-field">
+            <div className="form-field question-meta-field">
               <label htmlFor="questionOrder">Question order</label>
               <input
                 id="questionOrder"
@@ -251,11 +257,13 @@ export default function QuestionEditorForm({
                 onChange={(event) => updateField('questionOrder', event.target.value)}
                 placeholder="Optional"
               />
-              {fieldErrors.questionOrder ? (
-                <div className="field-error">{fieldErrors.questionOrder}</div>
-              ) : (
-                <div className="field-help">Optional. Useful when you want strict ordering.</div>
-              )}
+              {/* <div className="field-note-slot">
+                {fieldErrors.questionOrder ? (
+                  <div className="field-error">{fieldErrors.questionOrder}</div>
+                ) : (
+                  <div className="field-help">Optional. Useful when you want strict ordering.</div>
+                )}
+              </div> */}
             </div>
           </div>
 
@@ -276,10 +284,10 @@ export default function QuestionEditorForm({
               <div className="section-heading">
                 <div>
                   <h3>Options</h3>
-                  <p className="muted">
+                  {/* <p className="muted">
                     Multiple choice questions need at least two options and exactly one
                     correct answer.
-                  </p>
+                  </p> */}
                 </div>
                 <button type="button" className="button-secondary" onClick={addOption}>
                   Add option

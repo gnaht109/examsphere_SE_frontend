@@ -1,16 +1,24 @@
-export function buildQuestionPayload(question, questionOrder = question.questionOrder) {
+export function buildQuestionPayload(
+  question,
+  questionOrder = question.questionOrder,
+  { includeOptions = true } = {},
+) {
   return {
     content: question.content,
     points: question.points ?? null,
     type: question.questionType,
     explaination: question.explaination || '',
     questionOrder,
-    options:
-      question.options?.map((option, index) => ({
-        content: option.content,
-        isCorrect: Boolean(option.isCorrect),
-        optionOrder: option.optionOrder ?? index + 1,
-      })) || [],
+    ...(includeOptions
+      ? {
+          options:
+            question.options?.map((option, index) => ({
+              content: option.content,
+              isCorrect: Boolean(option.isCorrect),
+              optionOrder: option.optionOrder ?? index + 1,
+            })) || [],
+        }
+      : {}),
   };
 }
 

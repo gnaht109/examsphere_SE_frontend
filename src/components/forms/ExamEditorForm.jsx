@@ -144,9 +144,9 @@ export default function ExamEditorForm({
               placeholder="Short guidance for teachers or students"
               rows={5}
             />
-            <div className="field-help">
+            {/* <div className="field-help">
               Optional. Keep it short and meaningful so the exam list stays readable.
-            </div>
+            </div> */}
           </div>
 
           <div className="form-field">
@@ -161,13 +161,13 @@ export default function ExamEditorForm({
               onChange={handleChange}
               required
             />
-            {fieldErrors.duration ? (
+            {/* {fieldErrors.duration ? (
               <div className="field-error">{fieldErrors.duration}</div>
             ) : (
               <div className="field-help">
                 Your backend requires a number greater than or equal to 1.
               </div>
-            )}
+            )} */}
           </div>
 
           <div className="form-field">
@@ -182,13 +182,13 @@ export default function ExamEditorForm({
               onChange={handleChange}
               required
             />
-            {fieldErrors.totalScore ? (
+            {/* {fieldErrors.totalScore ? (
               <div className="field-error">{fieldErrors.totalScore}</div>
             ) : (
               <div className="field-help">
                 This should match the total points available when the exam is published.
               </div>
-            )}
+            )} */}
           </div>
 
           {errorMessage ? <div className="error-banner">{errorMessage}</div> : null}

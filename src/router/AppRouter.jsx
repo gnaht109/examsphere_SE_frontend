@@ -16,6 +16,8 @@ import CreatePassagePage from '../pages/teacher/CreatePassagePage.jsx';
 import EditExamPage from '../pages/teacher/EditExamPage.jsx';
 import EditQuestionPage from '../pages/teacher/EditQuestionPage.jsx';
 import StudentDashboardPage from '../pages/student/StudentDashboardPage.jsx';
+import StudentExamInfoPage from '../pages/student/StudentExamInfoPage.jsx';
+import StudentAttemptsPage from '../pages/student/StudentAttemptsPage.jsx';
 import StudentExamsPage from '../pages/student/StudentExamsPage.jsx';
 import StudentTakeExamPage from '../pages/student/StudentTakeExamPage.jsx';
 
@@ -140,7 +142,31 @@ export default function AppRouter() {
             }
           />
           <Route
+            path="/student/exams/attempts"
+            element={
+              <RoleRoute allowedRole="STUDENT">
+                <StudentAttemptsPage status="SUBMITTED" />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/student/exams/ongoing"
+            element={
+              <RoleRoute allowedRole="STUDENT">
+                <StudentAttemptsPage status="IN_PROGRESS" />
+              </RoleRoute>
+            }
+          />
+          <Route
             path="/student/exams/:examId"
+            element={
+              <RoleRoute allowedRole="STUDENT">
+                <StudentExamInfoPage />
+              </RoleRoute>
+            }
+          />
+          <Route
+            path="/student/exams/:examId/take"
             element={
               <RoleRoute allowedRole="STUDENT">
                 <StudentTakeExamPage />

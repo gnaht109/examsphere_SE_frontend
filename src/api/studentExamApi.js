@@ -18,6 +18,11 @@ export function getStudentAttemptApi(attemptId) {
   return apiRequest(`/student/attempts/${attemptId}`);
 }
 
+export function getStudentAttemptsApi(status) {
+  const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  return apiRequest(`/student/attempts${query}`);
+}
+
 export function saveStudentAttemptAnswerApi(attemptId, payload) {
   return apiRequest(`/student/attempts/${attemptId}/answers`, {
     method: 'POST',

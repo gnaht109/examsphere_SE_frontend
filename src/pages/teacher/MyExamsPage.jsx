@@ -10,7 +10,6 @@ import { faTrash } from '@fortawesome/free-solid-svg-icons';
 const STATUS_FILTERS = [
   { label: 'Publish', value: 'PUBLISHED' },
   { label: 'Draft', value: 'DRAFT' },
-  { label: 'Closed', value: 'CLOSED' },
 ];
 
 export default function MyExamsPage() {
@@ -71,7 +70,7 @@ export default function MyExamsPage() {
       <header className="teacher-exams-header">
         <div>
           <h2>My Exams</h2>
-          <p>Manage your exam list with a cleaner grouped view by status.</p>
+          {/* <p>Manage your exam list with a cleaner grouped view by status.</p> */}
         </div>
         <Link className="button-primary" to="/teacher/exams/new">
           Create exam
