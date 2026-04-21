@@ -10,6 +10,9 @@ export default function StudentExamNavigator({
   answers,
   secondsRemaining,
   onJumpToQuestion,
+  onSubmit,
+  isSubmitting = false,
+  canSubmit = true,
 }) {
   const answeredCount = questions.filter((item) => answers[item.id] !== undefined && answers[item.id] !== null).length;
   const progressPercent = questions.length ? (answeredCount / questions.length) * 100 : 0;
@@ -49,8 +52,13 @@ export default function StudentExamNavigator({
         })}
       </div>
 
-      <button type="button" className="button-primary student-submit-button">
-        Submit
+      <button
+        type="button"
+        className="button-primary student-submit-button"
+        onClick={onSubmit}
+        disabled={!canSubmit || isSubmitting}
+      >
+        {isSubmitting ? 'Submitting...' : 'Submit'}
       </button>
     </aside>
   );

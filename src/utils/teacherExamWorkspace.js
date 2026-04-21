@@ -1,7 +1,7 @@
 export function buildQuestionPayload(question, questionOrder = question.questionOrder) {
   return {
     content: question.content,
-    points: question.points ?? 1,
+    points: question.points ?? null,
     type: question.questionType,
     explaination: question.explaination || '',
     questionOrder,

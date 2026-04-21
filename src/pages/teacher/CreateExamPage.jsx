@@ -65,6 +65,7 @@ export default function CreateExamPage() {
             title: '',
             description: '',
             duration: 60,
+            totalScore: 100,
           }}
           heading="Manual Create"
           description="Create the exam metadata first, then manage content inside the exam workspace."

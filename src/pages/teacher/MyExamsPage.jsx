@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { deleteTeacherExamApi, getMyExamsApi } from '../../api/teacherExamApi.js';
-import { formatDateTime, getStatusClassName } from '../../utils/formatters.js';
+import { formatDateTime, formatScore, getStatusClassName } from '../../utils/formatters.js';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faEye } from '@fortawesome/free-solid-svg-icons';
 import { faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -116,6 +116,7 @@ export default function MyExamsPage() {
                   <span className={`pill ${getStatusClassName(exam.status)}`}>{exam.status}</span>
                   <span className="pill">{exam.duration} minutes</span>
                   <span className="pill">{exam.questionCount} questions</span>
+                  <span className="pill">{formatScore(exam.totalScore)} points</span>
                 </div>
 
                 <h3>{exam.title}</h3>

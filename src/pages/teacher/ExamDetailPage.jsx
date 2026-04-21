@@ -17,7 +17,7 @@ import {
   updateTeacherQuestionApi,
 } from '../../api/teacherExamApi.js';
 import { buildExamDisplayItems, countDisplayQuestions } from '../../utils/examOrdering.js';
-import { formatDateTime, getStatusClassName } from '../../utils/formatters.js';
+import { formatDateTime, formatScore, getStatusClassName } from '../../utils/formatters.js';
 import { buildQuestionInitialForm } from '../../utils/questionForm.js';
 import {
   applyPassageQuestionOrderToExam,
@@ -300,6 +300,7 @@ export default function ExamDetailPage() {
           <span className={`pill ${getStatusClassName(exam.status)}`}>{exam.status}</span>
           <span className="pill">{exam.duration} minutes</span>
           <span className="pill">{totalVisibleQuestions} questions</span>
+          <span className="pill">{formatScore(exam.totalScore)} points</span>
           <span className="pill">
             {exam.passages?.length || 0} passage{(exam.passages?.length || 0) === 1 ? '' : 's'}
           </span>
@@ -322,6 +323,7 @@ export default function ExamDetailPage() {
               title: exam.title || '',
               description: exam.description || '',
               duration: exam.duration || 60,
+              totalScore: exam.totalScore || 100,
             }}
             heading="Edit Exam"
             description="Update title, description, and timing without leaving this workspace."

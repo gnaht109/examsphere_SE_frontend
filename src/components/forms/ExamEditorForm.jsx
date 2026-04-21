@@ -12,6 +12,10 @@ function validateForm(form) {
     errors.duration = 'Duration must be at least 1 minute.';
   }
 
+  if (!Number.isFinite(Number(form.totalScore)) || Number(form.totalScore) <= 0) {
+    errors.totalScore = 'Total score must be greater than 0.';
+  }
+
   return errors;
 }
 
@@ -66,6 +70,7 @@ export default function ExamEditorForm({
         title: form.title.trim(),
         description: form.description.trim(),
         duration: Number(form.duration),
+        totalScore: Number(form.totalScore),
       });
     } catch (error) {
       setErrorMessage(error.message);
@@ -161,6 +166,27 @@ export default function ExamEditorForm({
             ) : (
               <div className="field-help">
                 Your backend requires a number greater than or equal to 1.
+              </div>
+            )}
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="totalScore">Total score</label>
+            <input
+              id="totalScore"
+              name="totalScore"
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={form.totalScore}
+              onChange={handleChange}
+              required
+            />
+            {fieldErrors.totalScore ? (
+              <div className="field-error">{fieldErrors.totalScore}</div>
+            ) : (
+              <div className="field-help">
+                This should match the total points available when the exam is published.
               </div>
             )}
           </div>

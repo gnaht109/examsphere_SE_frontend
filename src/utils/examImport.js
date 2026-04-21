@@ -118,7 +118,7 @@ function parseWorkbookRows(rows) {
         passageOrder: getCell(row, headers, 'passage_order') || null,
         content: String(getCell(row, headers, 'question') || '').trim(),
         type: questionType,
-        points: Number(getCell(row, headers, 'points') || 1),
+        points: getCell(row, headers, 'points') === '' ? null : Number(getCell(row, headers, 'points')),
         explaination: String(getCell(row, headers, 'explanation') || getCell(row, headers, 'explaination') || '').trim(),
         questionOrder: getCell(row, headers, 'question_order') || null,
         options: buildOptions(row, headers, questionType),
@@ -137,6 +137,7 @@ function parseWorkbookRows(rows) {
       title: metadata.title || '',
       description: metadata.description || '',
       duration: Number(metadata.duration || 60),
+      totalScore: Number(metadata.total_score || 100),
     },
     questions,
   };
@@ -171,6 +172,7 @@ export function buildExamImportTemplate() {
   return `Title,Sample Midterm Exam
 Description,Imported from spreadsheet
 Duration,60
+Total Score,100
 
 Question,Type,Option A,Option B,Option C,Option D,Correct,Points,Question Order,Passage Order,Passage,Explanation
 What is 2 + 2?,MULTIPLE_CHOICE,3,4,5,6,2,1,1,,,Basic arithmetic

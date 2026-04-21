@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:8080/api';
+const API_ROOT = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 
 export const AUTH_STORAGE_KEY = 'examsphere_auth';
 
@@ -36,7 +36,7 @@ export async function apiRequest(path, options = {}) {
     headers.Authorization = `${auth.type || 'Bearer'} ${auth.token}`;
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
+  const response = await fetch(`${API_ROOT}${path}`, {
     ...options,
     headers,
   });

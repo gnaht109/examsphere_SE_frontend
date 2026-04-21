@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { getPublishedStudentExamsApi } from '../../api/studentExamApi.js';
-import { formatDateTime } from '../../utils/formatters.js';
+import { formatDateTime, formatScore } from '../../utils/formatters.js';
 
 export default function StudentExamsPage() {
   const [exams, setExams] = useState([]);
@@ -65,6 +65,7 @@ export default function StudentExamsPage() {
                 <span className="pill pill-published">{exam.status}</span>
                 <span className="pill">{exam.duration} minutes</span>
                 <span className="pill">{exam.questionCount} questions</span>
+                <span className="pill">{formatScore(exam.totalScore)} points</span>
               </div>
 
               <h3>{exam.title}</h3>

@@ -1949,6 +1949,16 @@ button {
   min-width: 0;
 }
 
+.student-result-grid {
+  display: grid;
+  gap: 20px;
+}
+
+.student-result-summary,
+.student-result-card {
+  padding: 24px;
+}
+
 .student-active-question-header {
   display: flex;
   justify-content: space-between;

@@ -45,12 +45,12 @@ export default function StudentDashboardPage() {
       <article className="surface-card student-info-panel">
         <div className="section-heading">
           <div>
-            <h3>Current Student Flow</h3>
-            <p className="muted">
-              Published exam listing and exam detail are connected. Submission is still a placeholder
-              for now, so this area focuses on browsing, navigation, and answer progress.
-            </p>
-          </div>
+          <h3>Current Student Flow</h3>
+          <p className="muted">
+              Published exam listing, answer saving, and final submission are now connected to the
+              backend attempt flow.
+          </p>
+        </div>
           <Link className="button-secondary" to="/student/exams">
             Open catalog
           </Link>

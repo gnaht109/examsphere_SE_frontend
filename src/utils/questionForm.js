@@ -15,7 +15,7 @@ export function buildQuestionInitialForm(question) {
   if (!question) {
     return {
       content: '',
-      points: 1,
+      points: '',
       type: QUESTION_TYPES.MULTIPLE_CHOICE,
       explaination: '',
       questionOrder: '',
@@ -38,7 +38,7 @@ export function buildQuestionInitialForm(question) {
 
   return {
     content: question.content || '',
-    points: question.points ?? 1,
+    points: question.points ?? '',
     type: question.questionType || QUESTION_TYPES.MULTIPLE_CHOICE,
     explaination: question.explaination || '',
     questionOrder: question.questionOrder ?? '',

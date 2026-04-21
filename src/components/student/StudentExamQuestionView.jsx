@@ -8,6 +8,7 @@ export default function StudentExamQuestionView({
   onNext,
   hasPrevious,
   hasNext,
+  isSavingAnswer = false,
 }) {
   if (!item) {
     return null;
@@ -48,6 +49,7 @@ export default function StudentExamQuestionView({
           onSelectAnswer={onSelectAnswer}
           className="student-active-option-list"
         />
+        {isSavingAnswer ? <div className="field-help">Saving your answer...</div> : null}
       </div>
 
       <footer className="student-active-question-footer">

@@ -115,6 +115,7 @@ export default function ExamImportForm({ onImport, cancelTo }) {
 
               <div className="detail-meta">
                 <span className="pill">{preview.exam.duration} minutes</span>
+                <span className="pill">{preview.exam.totalScore} points</span>
                 <span className="pill">{preview.questions.filter((question) => !question.passage).length} standalone</span>
                 <span className="pill">
                   {

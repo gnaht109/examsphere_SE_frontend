@@ -21,7 +21,7 @@ function validateQuestionForm(form) {
     errors.content = 'Question content is required.';
   }
 
-  if (!Number.isFinite(Number(form.points)) || Number(form.points) <= 0) {
+  if (form.points !== '' && (!Number.isFinite(Number(form.points)) || Number(form.points) <= 0)) {
     errors.points = 'Points must be a positive number.';
   }
 
@@ -46,7 +46,7 @@ function validateQuestionForm(form) {
 function buildQuestionPayload(form) {
   const basePayload = {
     content: form.content.trim(),
-    points: Number(form.points),
+    points: form.points === '' ? null : Number(form.points),
     type: form.type,
     explaination: form.explaination.trim() || null,
     questionOrder: form.questionOrder ? Number(form.questionOrder) : null,
@@ -229,9 +229,14 @@ export default function QuestionEditorForm({
                 step="0.5"
                 value={form.points}
                 onChange={(event) => updateField('points', event.target.value)}
-                required
+                placeholder="Optional"
               />
               {fieldErrors.points ? <div className="field-error">{fieldErrors.points}</div> : null}
+              {!fieldErrors.points ? (
+                <div className="field-help">
+                  Optional. Leave blank to let the backend distribute points from the exam total.
+                </div>
+              ) : null}
             </div>
 
             <div className="form-field">
