@@ -35,9 +35,10 @@ export default function SideRail({ brandTo = '/', brandLabel = 'ExamSphere', ite
   return (
     <aside className="side-rail">
       <div className="rail-brand-wrap">
-        <Link className="home-brand rail-brand" to={brandTo}>
-          <span className="home-brand-mark"></span>
-          <span className="rail-brand-text">{brandLabel}</span>
+        <Link className="home-brand rail-brand rail-brand-monogram" to={brandTo} aria-label={brandLabel}>
+          <span className="home-brand-mark" aria-hidden="true">
+            <span className="home-brand-letter">E</span>
+          </span>
         </Link>
       </div>
 

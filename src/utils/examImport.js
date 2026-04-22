@@ -1,13 +1,46 @@
 import * as XLSX from 'xlsx';
 
-const REQUIRED_QUESTION_HEADERS = ['question', 'type', 'correct'];
+const REQUIRED_QUESTION_HEADERS = ['question', 'answer'];
 const SUPPORTED_EXTENSIONS = ['xlsx', 'xls', 'csv', 'tsv'];
+const HEADER_ALIASES = {
+  title: ['title', 'exam_title', 'name', 'exam_name'],
+  description: ['description', 'exam_description', 'details'],
+  duration: ['duration', 'duration_minutes', 'minutes', 'time_limit'],
+  total_score: ['total_score', 'totalscore', 'total', 'score', 'max_score'],
+  question: ['question', 'question_text', 'content'],
+  type: ['type', 'question_type', 'format'],
+  answer: ['answer', 'correct', 'correct_answer'],
+  points: ['points', 'score', 'marks'],
+  question_order: ['question_order', 'order', 'question_no', 'question_number'],
+  passage_order: ['passage_order', 'group_order', 'reading_order'],
+  passage: ['passage', 'reading', 'reading_text', 'shared_passage'],
+  explanation: ['explanation', 'explaination', 'exaplanation', 'note', 'notes'],
+  option_a: ['option_a', 'a', 'choice_a'],
+  option_b: ['option_b', 'b', 'choice_b'],
+  option_c: ['option_c', 'c', 'choice_c'],
+  option_d: ['option_d', 'd', 'choice_d'],
+  option_e: ['option_e', 'e', 'choice_e'],
+  option_f: ['option_f', 'f', 'choice_f'],
+};
+const CANONICAL_OPTION_HEADERS = ['option_a', 'option_b', 'option_c', 'option_d', 'option_e', 'option_f'];
 
 function normalizeHeader(value) {
   return String(value || '')
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '_');
+}
+
+function getCanonicalHeader(name) {
+  const normalized = normalizeHeader(name);
+
+  return (
+    Object.entries(HEADER_ALIASES).find(([, aliases]) => aliases.includes(normalized))?.[0] || normalized
+  );
+}
+
+function normalizeRowHeaders(row) {
+  return row.map(getCanonicalHeader);
 }
 
 function getCell(row, headers, name) {
@@ -18,16 +51,26 @@ function getCell(row, headers, name) {
 function toQuestionType(value) {
   const normalized = String(value || '').trim().toUpperCase();
 
-  if (normalized === 'TRUE_FALSE' || normalized === 'TRUE/FALSE' || normalized === 'TRUE FALSE') {
+  if (
+    normalized === 'TRUE_FALSE' ||
+    normalized === 'TRUE/FALSE' ||
+    normalized === 'TRUE FALSE' ||
+    normalized === 'TF' ||
+    normalized === 'TRUEFALSE'
+  ) {
     return 'TRUE_FALSE';
+  }
+
+  if (normalized === 'MCQ' || normalized === 'MULTIPLE' || normalized === 'MULTIPLECHOICE') {
+    return 'MULTIPLE_CHOICE';
   }
 
   return 'MULTIPLE_CHOICE';
 }
 
-function buildOptions(row, headers, questionType) {
+function buildOptions(row, headers, questionType, answerValue) {
   if (questionType === 'TRUE_FALSE') {
-    const correctValue = String(getCell(row, headers, 'correct')).trim().toLowerCase();
+    const correctValue = String(answerValue || '').trim().toLowerCase();
 
     return [
       { content: 'True', isCorrect: correctValue === 'true', optionOrder: 1 },
@@ -35,20 +78,23 @@ function buildOptions(row, headers, questionType) {
     ];
   }
 
-  const optionHeaders = headers.filter((header) => /^option(_|\d|[a-z])/.test(header));
+  const optionHeaders = CANONICAL_OPTION_HEADERS.filter((header) => headers.includes(header));
   const rawOptions = optionHeaders
     .map((header) => String(getCell(row, headers, header) || '').trim())
     .filter(Boolean);
 
-  const correctValue = String(getCell(row, headers, 'correct')).trim();
+  const correctValue = String(answerValue || '').trim();
   const correctIndex = Number.parseInt(correctValue, 10);
+  const exactMatchCount = rawOptions.filter((content) => content === correctValue).length;
 
   return rawOptions.map((content, index) => ({
     content,
     isCorrect:
       Number.isFinite(correctIndex) && correctIndex > 0
         ? index + 1 === correctIndex
-        : content.toLowerCase() === correctValue.toLowerCase(),
+        : exactMatchCount > 0
+          ? content === correctValue
+          : content.toLowerCase() === correctValue.toLowerCase(),
     optionOrder: index + 1,
   }));
 }
@@ -84,7 +130,7 @@ function parseWorkbookRows(rows) {
   let tableStartIndex = -1;
 
   for (let index = 0; index < rows.length; index += 1) {
-    const first = normalizeHeader(rows[index][0]);
+    const first = getCanonicalHeader(rows[index][0]);
     const second = rows[index][1];
 
     if (first === 'question') {
@@ -98,10 +144,10 @@ function parseWorkbookRows(rows) {
   }
 
   if (tableStartIndex === -1) {
-    throw new Error('Could not find the question table. Add a row with headers like Question, Type, Correct.');
+    throw new Error('Could not find the question table. Add a row with headers like Question, A, B, C, D, Answer.');
   }
 
-  const headers = rows[tableStartIndex].map(normalizeHeader);
+  const headers = normalizeRowHeaders(rows[tableStartIndex]);
   const missingHeaders = REQUIRED_QUESTION_HEADERS.filter((header) => !headers.includes(header));
 
   if (missingHeaders.length > 0) {
@@ -112,6 +158,7 @@ function parseWorkbookRows(rows) {
     .slice(tableStartIndex + 1)
     .filter((row) => row.some((cell) => String(cell || '').trim()))
     .map((row, rowIndex) => {
+      const answerValue = getCell(row, headers, 'answer');
       const questionType = toQuestionType(getCell(row, headers, 'type'));
       const question = {
         passage: String(getCell(row, headers, 'passage') || '').trim(),
@@ -119,9 +166,9 @@ function parseWorkbookRows(rows) {
         content: String(getCell(row, headers, 'question') || '').trim(),
         type: questionType,
         points: getCell(row, headers, 'points') === '' ? null : Number(getCell(row, headers, 'points')),
-        explaination: String(getCell(row, headers, 'explanation') || getCell(row, headers, 'explaination') || '').trim(),
+        explaination: String(getCell(row, headers, 'explanation') || '').trim(),
         questionOrder: getCell(row, headers, 'question_order') || null,
-        options: buildOptions(row, headers, questionType),
+        options: buildOptions(row, headers, questionType, answerValue),
       };
 
       validateQuestion(question, tableStartIndex + rowIndex + 2);
@@ -169,14 +216,14 @@ export async function parseExamImportFile(file) {
 }
 
 export function buildExamImportTemplate() {
-  return `Title,Sample Midterm Exam
-Description,Imported from spreadsheet
+  return `Title,Midterm Exam
+Description,This is example of the template
 Duration,60
-Total Score,100
+TotalScore,100
 
-Question,Type,Option A,Option B,Option C,Option D,Correct,Points,Question Order,Passage Order,Passage,Explanation
-What is 2 + 2?,MULTIPLE_CHOICE,3,4,5,6,2,1,1,,,Basic arithmetic
-The earth is round.,TRUE_FALSE,,,,,True,1,2,,,Simple fact
-What is the main idea?,MULTIPLE_CHOICE,Choice A,Choice B,Choice C,Choice D,Choice B,2,3,3,This is a shared passage for the next questions.,Reading comprehension
-Which detail supports the passage?,MULTIPLE_CHOICE,Detail A,Detail B,Detail C,Detail D,Detail C,2,4,3,This is a shared passage for the next questions.,Second passage question`;
+Question,A,B,C,D,Answer,Points,Type,Passage,Exaplanation
+What is 2+2?,3,5,1,4,4,10,MCQ,,Math
+The earth is round,True,False,,,True,10,TF,,Geo
+What is the main idea?,One,Two,Three,Four,One,10,MCQ,This is passage,Passage
+What is the passage support,Answer A,Answer B,Answer C,Answer D,Answer C,10,MCQ,This is passage,Passage`;
 }

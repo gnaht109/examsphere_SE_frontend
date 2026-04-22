@@ -28,7 +28,7 @@ export default function AppLayout() {
         { label: 'Dashboard', to: '/student', end: true },
         { label: 'Published Exams', to: '/student/exams' },
         { label: 'My Attempts', to: '/student/exams/attempts' },
-        { label: 'My Ongoing Attempts', to: '/student/exams/ongoing' },
+        { label: 'Ongoing Attempts', to: '/student/exams/ongoing' },
       ];
   const profileRoute = railItems[0]?.to || '/';
 

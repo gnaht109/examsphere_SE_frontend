@@ -12,6 +12,7 @@ export default function ExamImportForm({ onImport, cancelTo }) {
     const csv = buildExamImportTemplate();
     return `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`;
   }, []);
+  const excelTemplateHref = '/exam-import-template.xlsx';
 
   async function handlePreview() {
     if (!selectedFile) {
@@ -88,14 +89,23 @@ export default function ExamImportForm({ onImport, cancelTo }) {
               <div>
                 <h3>Template</h3>
                 <p className="muted">
-                  Put exam metadata at the top, then a question table. Use the `Passage` column to
-                  group questions under the same reading block, and `Question Order` /
-                  `Passage Order` when you want a strict mixed layout.
+                  Download the Excel template and fill it in directly. It keeps the exact row and
+                  column layout from your example, including `Title`, `Description`, `Duration`,
+                  `TotalScore`, and the question table. A CSV version is still available if needed.
                 </p>
               </div>
-              <a className="button-secondary" href={templateHref} download="exam-import-template.csv">
-                Download CSV template
-              </a>
+              <div className="action-row">
+                <a
+                  className="button-secondary"
+                  href={excelTemplateHref}
+                  download="exam-import-template.xlsx"
+                >
+                  Download Excel template
+                </a>
+                <a className="button-secondary" href={templateHref} download="exam-import-template.csv">
+                  Download CSV template
+                </a>
+              </div>
             </div>
 
             <pre className="import-template-preview">{buildExamImportTemplate()}</pre>
